@@ -47,6 +47,7 @@ namespace Tizen.Flutter.Embedding
             ref FlutterDesktopEngineProperties engine_properties);
 
         [DllImport("flutter_tizen.so")]
+
         public static extern void FlutterDesktopShutdownEngine(
             FlutterDesktopEngine engine);
 
@@ -61,6 +62,20 @@ namespace Tizen.Flutter.Embedding
 
         [DllImport("flutter_tizen.so")]
         public static extern IntPtr FlutterDesktopGetWindow(
+            FlutterDesktopPluginRegistrar registrar);
+
+        [DllImport("flutter_tizen.so")]
+        public static extern void FlutterDesktopSetBuffer(
+            FlutterDesktopPluginRegistrar registrar,
+            IntPtr buffer);
+
+        [DllImport("flutter_tizen.so")]
+        public static extern void FlutterDesktopSetUpdateCallback(
+            FlutterDesktopPluginRegistrar registrar,
+            IntPtr updateCallack);
+
+        [DllImport("flutter_tizen.so")]
+        public static extern IntPtr FlutterDesktopGetBuffer(
             FlutterDesktopPluginRegistrar registrar);
 
         [DllImport("flutter_tizen.so")]
