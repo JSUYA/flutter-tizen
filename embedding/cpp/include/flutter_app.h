@@ -5,10 +5,13 @@
 #ifndef FLUTTER_TIZEN_EMBEDDING_CPP_INCLUDE_FLUTTER_APP_H_
 #define FLUTTER_TIZEN_EMBEDDING_CPP_INCLUDE_FLUTTER_APP_H_
 
+#include <Ecore.h>
+#include <Elementary.h>
 #include <app.h>
 #include <flutter/plugin_registry.h>
 #include <flutter_tizen.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -126,6 +129,8 @@ class FlutterApp : public flutter::PluginRegistry {
   FlutterExternalOutputType external_output_type_ =
       FlutterExternalOutputType::kNone;
 
+  std::function<void(Evas_Object *)> build_tizen_platform_view_ = nullptr;
+
  private:
   // The optional entrypoint in the Dart project.
   //
@@ -137,6 +142,8 @@ class FlutterApp : public flutter::PluginRegistry {
 
   // The Flutter view instance handle.
   FlutterDesktopViewRef view_ = nullptr;
+
+  Evas_Object *platformview_window_ = nullptr;
 };
 
 #endif /* FLUTTER_TIZEN_EMBEDDING_CPP_INCLUDE_FLUTTER_APP_H_ */

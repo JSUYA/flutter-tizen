@@ -46,6 +46,17 @@ bool FlutterApp::OnCreate() {
   window_prop.external_output_type =
       static_cast<FlutterDesktopExternalOutputType>(external_output_type_);
 
+  if (build_tizen_platform_view_) {
+    Ecore_Evas *ee = ecore_evas_buffer_new(1, 1);  // Temporary dummy size...
+    Evas_Object *surface_win = elm_win_fake_add(ee);
+    // elm_object_tree_focus_allow_set(surface_win, EINA_TRUE); // need ?
+
+    if (!surface_win)
+      TizenLog::Error("Can not create fake win from ecore evas buffer");
+
+    build_tizen_platform_view_(surface_win);
+    window_prop.platformview_window = surface_win;
+  }
   view_ = FlutterDesktopViewCreateFromNewWindow(window_prop,
                                                 engine_->RelinquishEngine());
   if (!view_) {

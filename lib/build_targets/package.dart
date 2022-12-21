@@ -305,6 +305,7 @@ class NativeTpk extends TizenPackage {
       'capi-appfw-app-common',
       'capi-appfw-application',
       'dlog',
+      'ecore_evas',
       'elementary',
       'evas',
     ];
