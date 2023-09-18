@@ -1,6 +1,6 @@
 ﻿using Tizen.Flutter.Embedding;
 
-namespace Runner
+namespace RunnerService
 {
     public class App : FlutterServiceApplication
     {
