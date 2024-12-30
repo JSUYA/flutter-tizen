@@ -150,6 +150,13 @@ namespace Tizen.Flutter.Embedding
                 throw new Exception("External output is not supported by FlutterRendererType::kEGL type renderer.");
             }
 
+            var daliApp = ApplicationNewManual4(0, "", "", 1 /* transparent */);
+            var daliWindow = GetWindow(daliApp);
+            IntPtr wlWindow = IntPtr.Zero;
+            if (HasBody(daliWindow))
+            {
+                wlWindow = GetNativeWindowHandler(daliWindow);
+            }
             var windowProperties = new FlutterDesktopWindowProperties
             {
                 x = WindowOffsetX,
@@ -161,6 +168,7 @@ namespace Tizen.Flutter.Embedding
                 top_level = IsTopLevel,
                 renderer_type = (FlutterDesktopRendererType)RendererType,
                 external_output_type = (FlutterDesktopExternalOutputType)ExternalOutputType,
+                precreated = wlWindow,
             };
 
             View = FlutterDesktopViewCreateFromNewWindow(ref windowProperties, Engine.Engine);
