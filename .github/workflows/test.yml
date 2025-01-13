@@ -41,10 +41,44 @@ jobs:
       - uses: actions/checkout@v3
         with:
           path: flutter-tizen
+
+      - name: Cache Python 2.7
+        id: cache-python
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/python2.7
+          key: python-2.7-ubuntu-24.04
+
+      - name: Check libpython installation
+        run: ldconfig -p | grep libpython
+
+      - name: Install dependencies
+        if: steps.cache-python.outputs.cache-hit != 'true'
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+          wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
+          tar xzf Python-2.7.18.tgz
+          cd Python-2.7.18
+          ./configure --enable-optimizations
+          make
+          sudo make altinstall
+          sudo update-alternatives --install /usr/bin/python python /usr/local/lib/python2.7 1
+          sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 2
+          sudo ldconfig
+          find -name "libpython*.so*"
+
+      - name: Verify Python version
+        run: python2.7 --version
+
+      - name: Verify libpython installation
+        run: ldconfig -p | grep libpython
+
       - name: Install Tizen Studio
         run: |
-          sudo apt install -y libncurses5 python2.7 libpython2.7 gettext \
-            libkf5itemmodels5 libkf5kiowidgets5 libkchart2
+          sudo add-apt-repository universe
+          sudo apt update
+          sudo apt install -y gettext libkf5itemmodels5 libkf5kiowidgets5 libkchart2
           curl https://download.tizen.org/sdk/Installer/tizen-studio_5.6/web-cli_Tizen_Studio_5.6_ubuntu-64.bin -o install.bin
           chmod a+x install.bin
           ./install.bin --accept-license $HOME/tizen-studio
