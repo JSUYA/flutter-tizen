@@ -168,10 +168,9 @@ class TizenDevicesCommandOutput {
 
   /// Source: [DevicesCommandOutput.printDevicesAsJson] in `devices.dart`
   Future<void> printDevicesAsJson(List<Device> devices) async {
+    const jsonEncoder = JsonEncoder.withIndent('  ');
     _logger.printStatus(
-      const JsonEncoder.withIndent(
-        '  ',
-      ).convert(await Future.wait(devices.map((Device d) => d.toJson()))),
+      jsonEncoder.convert(await Future.wait(devices.map((Device d) => d.toJson()))),
     );
   }
 }
