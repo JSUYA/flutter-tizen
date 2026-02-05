@@ -9,10 +9,12 @@ import 'package:file/memory.dart';
 import 'package:file_testing/file_testing.dart';
 import 'package:flutter_tizen/tizen_plugins.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
+import 'package:yaml/yaml.dart';
 import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/project.dart';
 import 'package:flutter_tools/src/runner/flutter_command.dart';
 
+import '../src/common.dart';
 import '../src/context.dart';
 import '../src/test_flutter_command_runner.dart';
 
@@ -147,6 +149,31 @@ ${package.devDependencies.map((String d) => '  $d: {path: $d}').join('\n')}
     writePubspecs(graph);
     writePackageGraph(graph);
   }
+
+  testWithoutContext('Disallows "none" for dartPluginClass/pluginClass on Tizen', () {
+    final Directory dir = fileSystem.directory('bad_plugin')..createSync(recursive: true);
+
+    final YamlMap yaml = loadYaml('''
+namespace: Bad
+pluginClass: none
+fileName: bad.h
+''') as YamlMap;
+
+    expect(
+      () => TizenPlugin.fromYaml('bad_plugin', dir, yaml, isDevDependency: false),
+      throwsToolExit(message: 'cannot be "none"'),
+    );
+
+    final YamlMap yaml2 = loadYaml('''
+dartPluginClass: none
+fileName: bad.dart
+''') as YamlMap;
+
+    expect(
+      () => TizenPlugin.fromYaml('bad_plugin', dir, yaml2, isDevDependency: false),
+      throwsToolExit(message: 'cannot be "none"'),
+    );
+  });
 
   testUsingContext('Generates Dart plugin registrant', () async {
     final command = _DummyFlutterCommand();

@@ -73,17 +73,39 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
     YamlMap yaml, {
     required bool isDevDependency,
   }) {
-    assert(validate(yaml));
+    if (!validate(yaml)) {
+      throwToolExit(
+        'Invalid plugin configuration for "$name" on Tizen: '
+        'expected a non-empty `pluginClass` or `dartPluginClass`.',
+      );
+    }
+
+    final String? pluginClass = yaml[kPluginClass] as String?;
+    final String? dartPluginClass = yaml[kDartPluginClass] as String?;
+
+    // Keep behavior aligned with upstream flutter_tools:
+    // - `dartPluginClass: none` is considered invalid and should be removed.
+    // - `pluginClass: none` is not supported.
+    if (_isNone(pluginClass) || _isNone(dartPluginClass)) {
+      throwToolExit(
+        'Invalid plugin configuration for "$name" on Tizen: '
+        '`pluginClass`/`dartPluginClass` cannot be "none". '
+        'Remove the key entirely (or provide a real class name).',
+      );
+    }
+
     return TizenPlugin(
       name: name,
       directory: directory,
       namespace: yaml[kNamespace] as String?,
-      pluginClass: yaml[kPluginClass] as String?,
-      dartPluginClass: yaml[kDartPluginClass] as String?,
+      pluginClass: pluginClass,
+      dartPluginClass: dartPluginClass,
       fileName: yaml[kFileName] as String?,
       isDevDependency: isDevDependency,
     );
   }
+
+  static bool _isNone(String? value) => value != null && value.trim().toLowerCase() == 'none';
 
   static bool validate(YamlMap yaml) {
     return yaml[kPluginClass] is String || yaml[kDartPluginClass] is String;
