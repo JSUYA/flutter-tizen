@@ -62,6 +62,15 @@ class TizenKernelSnapshotProgram extends KernelSnapshot {
 
     final String dillPath = environment.buildDir.childFile(KernelSnapshot.dillName).path;
 
+    // Keep feature parity with upstream flutter_tools: ensure FLUTTER_APP_FLAVOR
+    // is injected into dart-defines when a flavor is provided.
+    final List<String> dartDefines = decodeDartDefines(environment.defines, kDartDefines);
+    final String? flavor = environment.defines[kFlavor];
+    if (flavor != null) {
+      dartDefines.removeWhere((String define) => define.startsWith(kAppFlavor));
+      dartDefines.add('$kAppFlavor=$flavor');
+    }
+
     final CompilerOutput? output = await compiler.compile(
       sdkRoot: environment.artifacts.getArtifactPath(
         Artifact.flutterPatchedSdkPath,
@@ -80,7 +89,7 @@ class TizenKernelSnapshotProgram extends KernelSnapshot {
       extraFrontEndOptions: extraFrontEndOptions,
       fileSystemRoots: fileSystemRoots,
       fileSystemScheme: fileSystemScheme,
-      dartDefines: decodeDartDefines(environment.defines, kDartDefines),
+      dartDefines: dartDefines,
       packageConfig: packageConfig,
       buildDir: environment.buildDir,
       targetOS: 'linux',
