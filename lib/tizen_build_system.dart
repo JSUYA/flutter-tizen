@@ -22,11 +22,19 @@ class TizenBuildSystem extends FlutterBuildSystem {
     // Note that this will break incremental build of applications that use
     // Dart plugins on desktop platforms.
     // Issue: https://github.com/flutter-tizen/plugins/issues/341
-    if (target is CompositeTarget) {
-      target = CompositeTarget(target.dependencies
-          .where((Target target) => target is! DartPluginRegistrantTarget)
-          .toList());
-    }
+    target = _withoutDartPluginRegistrant(target);
     return super.buildIncremental(target, environment, previousBuild);
+  }
+
+  Target _withoutDartPluginRegistrant(Target target) {
+    if (target is CompositeTarget) {
+      return CompositeTarget(
+        target.dependencies
+            .where((Target t) => t is! DartPluginRegistrantTarget)
+            .map(_withoutDartPluginRegistrant)
+            .toList(),
+      );
+    }
+    return target;
   }
 }
