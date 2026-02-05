@@ -107,13 +107,21 @@ class TizenSdk {
     ];
     for (final findTizenHomeDirFunc in findTizenHomeDirFuncs) {
       tizenHomeDir = findTizenHomeDirFunc();
-      if (tizenHomeDir != null && tizenHomeDir.existsSync()) {
+      if (tizenHomeDir == null) {
+        continue;
+      }
+
+      globals.logger.printTrace('Checking for Tizen SDK in ${tizenHomeDir.path}');
+
+      if (tizenHomeDir.existsSync()) {
         final String tizenHomePath = globals.platform.isWindows
             ? tizenHomeDir.path.toLowerCase()
             : tizenHomeDir.path;
         final TizenSdkType sdkType = tizenHomePath.contains('.tizen-extension-platform')
             ? TizenSdkType.extension
             : TizenSdkType.cli;
+        globals.logger.printTrace('Found Tizen SDK ($sdkType) at ${tizenHomeDir.path}');
+
         return TizenSdk(
           tizenHomeDir,
           logger: globals.logger,
