@@ -37,6 +37,7 @@ class BuildTpkCommand extends BuildSubCommand with DartPluginRegistry, TizenRequ
     required bool verboseHelp,
   }) : super(verboseHelp: verboseHelp) {
     addCommonDesktopBuildOptions(verboseHelp: verboseHelp);
+    addIgnoreDeprecationOption();
     argParser.addOption(
       'target-arch',
       defaultsTo: 'arm',
@@ -64,6 +65,10 @@ class BuildTpkCommand extends BuildSubCommand with DartPluginRegistry, TizenRequ
 
   @override
   final description = 'Build a Tizen TPK file from your app.';
+
+  @override
+  DeprecationBehavior get deprecationBehavior =>
+      boolArg('ignore-deprecation') ? DeprecationBehavior.ignore : DeprecationBehavior.exit;
 
   /// See: [BuildApkCommand.runCommand] in `build_apk.dart`
   @override
