@@ -19,6 +19,29 @@ import 'application.dart';
 import 'embedding.dart';
 import 'utils.dart';
 
+void _verifyDataAssetsCopied(
+  Directory sourceAssetsDir,
+  Directory destAssetsDir, {
+  required Environment environment,
+}) {
+  // Data assets are introduced/extended upstream and are placed under
+  // flutter_assets/data.
+  final Directory sourceDataDir = sourceAssetsDir.childDirectory('data');
+  if (!sourceDataDir.existsSync()) {
+    return;
+  }
+
+  final Directory destDataDir = destAssetsDir.childDirectory('data');
+  if (!destDataDir.existsSync()) {
+    throwToolExit(
+      'Data assets directory exists but was not packaged correctly: '
+      '${destDataDir.path}',
+    );
+  }
+
+  environment.logger.printTrace('Data assets packaged: ${destDataDir.path}');
+}
+
 /// This target doesn't specify any input or output but the build system always
 /// triggers [build] without skipping.
 /// This doesn't affect subsequent builds of [dependencies].
@@ -82,10 +105,10 @@ class DotnetTpk extends TizenPackage {
     outputDir.createSync(recursive: true);
 
     // Copy necessary files.
-    copyDirectory(
-      environment.buildDir.childDirectory('flutter_assets'),
-      resDir.childDirectory('flutter_assets'),
-    );
+    final Directory sourceAssetsDir = environment.buildDir.childDirectory('flutter_assets');
+    final Directory destAssetsDir = resDir.childDirectory('flutter_assets');
+    copyDirectory(sourceAssetsDir, destAssetsDir);
+    _verifyDataAssetsCopied(sourceAssetsDir, destAssetsDir, environment: environment);
 
     final TizenManifest tizenManifest = TizenManifest.parseFromXml(tizenProject.manifestFile);
     final String profile = buildInfo.deviceProfile;
@@ -259,10 +282,10 @@ class NativeTpk extends TizenPackage {
     outputDir.createSync(recursive: true);
 
     // Copy necessary files.
-    copyDirectory(
-      environment.buildDir.childDirectory('flutter_assets'),
-      resDir.childDirectory('flutter_assets'),
-    );
+    final Directory sourceAssetsDir = environment.buildDir.childDirectory('flutter_assets');
+    final Directory destAssetsDir = resDir.childDirectory('flutter_assets');
+    copyDirectory(sourceAssetsDir, destAssetsDir);
+    _verifyDataAssetsCopied(sourceAssetsDir, destAssetsDir, environment: environment);
 
     final TizenManifest tizenManifest = TizenManifest.parseFromXml(tizenProject.manifestFile);
     final String profile = buildInfo.deviceProfile;
