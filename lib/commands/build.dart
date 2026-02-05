@@ -93,6 +93,7 @@ class BuildModuleCommand extends BuildSubCommand with DartPluginRegistry, TizenR
     required bool verboseHelp,
   }) : super(verboseHelp: verboseHelp) {
     addBuildModeFlags(verboseHelp: verboseHelp);
+    addIgnoreDeprecationOption();
     addDartObfuscationOption();
     addEnableExperimentation(hide: !verboseHelp);
     addSplitDebugInfoOption();
@@ -127,6 +128,10 @@ class BuildModuleCommand extends BuildSubCommand with DartPluginRegistry, TizenR
 
   @override
   final description = 'Build a module that can be embedded in your existing Tizen app.';
+
+  @override
+  DeprecationBehavior get deprecationBehavior =>
+      boolArg('ignore-deprecation') ? DeprecationBehavior.ignore : DeprecationBehavior.exit;
 
   @override
   Future<FlutterCommandResult> runCommand() async {
