@@ -101,6 +101,8 @@ class BuildModuleCommand extends BuildSubCommand with DartPluginRegistry, TizenR
     usesExtraDartFlagOptions(verboseHelp: verboseHelp);
     usesPubOption();
     usesTargetOption();
+    usesBuildNumberOption();
+    usesBuildNameOption();
     usesTrackWidgetCreation(verboseHelp: verboseHelp);
     argParser.addOption(
       'target-arch',
