@@ -72,7 +72,12 @@ class TizenSdk {
       },
       () {
         if (globals.platform.isWindows) {
-          if (environment.containsKey('USERPROFILE')) {
+          // The VS Code Tizen extension installs its SDK under the system drive,
+          // e.g. C:\\.tizen-extension-platform\server\sdktools\data.
+          //
+          // Some environments might not set USERPROFILE (e.g. CI, custom shells),
+          // so gate on SystemDrive which is the actual path input we use.
+          if (environment.containsKey('SystemDrive')) {
             return globals.fs
                 .directory(environment['SystemDrive'])
                 .childDirectory('.tizen-extension-platform')
@@ -103,12 +108,12 @@ class TizenSdk {
     for (final findTizenHomeDirFunc in findTizenHomeDirFuncs) {
       tizenHomeDir = findTizenHomeDirFunc();
       if (tizenHomeDir != null && tizenHomeDir.existsSync()) {
-        TizenSdkType sdkType;
-        if (tizenHomeDir.path.contains('.tizen-extension-platform')) {
-          sdkType = TizenSdkType.extension;
-        } else {
-          sdkType = TizenSdkType.cli;
-        }
+        final String tizenHomePath = globals.platform.isWindows
+            ? tizenHomeDir.path.toLowerCase()
+            : tizenHomeDir.path;
+        final TizenSdkType sdkType = tizenHomePath.contains('.tizen-extension-platform')
+            ? TizenSdkType.extension
+            : TizenSdkType.cli;
         return TizenSdk(
           tizenHomeDir,
           logger: globals.logger,

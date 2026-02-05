@@ -56,6 +56,46 @@ void main() {
         ),
   });
 
+  testUsingContext('TizenSdk.locateSdk finds VS Code extension SDK on Windows without USERPROFILE', () {
+    // Simulate the VS Code Tizen extension SDK layout.
+    fileSystem
+        .directory('/.tizen-extension-platform/server/sdktools/data')
+        .createSync(recursive: true);
+
+    final TizenSdk? sdk = TizenSdk.locateSdk();
+    expect(sdk, isNotNull);
+    expect(sdk!.sdkType, equals(TizenSdkType.extension));
+  }, overrides: <Type, Generator>{
+    FileSystem: () => fileSystem,
+    ProcessManager: () => FakeProcessManager.any(),
+    Platform: () => FakePlatform(
+          operatingSystem: 'windows',
+          // USERPROFILE intentionally omitted.
+          environment: <String, String>{'SystemDrive': '/'},
+        ),
+  });
+
+  testUsingContext('TizenSdk.locateSdk detects extension SDK type case-insensitively on Windows', () {
+    // Use a mixed-case path and point TIZEN_SDK to it.
+    fileSystem
+        .directory('/.TIZEN-EXTENSION-PLATFORM/server/sdktools/data')
+        .createSync(recursive: true);
+
+    final TizenSdk? sdk = TizenSdk.locateSdk();
+    expect(sdk, isNotNull);
+    expect(sdk!.sdkType, equals(TizenSdkType.extension));
+  }, overrides: <Type, Generator>{
+    FileSystem: () => fileSystem,
+    ProcessManager: () => FakeProcessManager.any(),
+    Platform: () => FakePlatform(
+          operatingSystem: 'windows',
+          environment: <String, String>{
+            'SystemDrive': '/',
+            'TIZEN_SDK': '/.TIZEN-EXTENSION-PLATFORM/server/sdktools/data',
+          },
+        ),
+  });
+
   testWithoutContext('TizenSdk.sdkVersion can parse version file', () {
     expect(tizenSdk.sdkVersion, isNull);
 
