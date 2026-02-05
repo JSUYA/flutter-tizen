@@ -13,8 +13,9 @@ class TizenCleanCommand extends CleanCommand {
 
   @override
   Future<FlutterCommandResult> runCommand() async {
+    final FlutterCommandResult result = await super.runCommand();
     final tizenProject = TizenProject.fromFlutter(FlutterProject.current());
     tizenProject.clean();
-    return super.runCommand();
+    return result;
   }
 }
