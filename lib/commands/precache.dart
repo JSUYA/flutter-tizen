@@ -65,14 +65,17 @@ class TizenPrecacheCommand extends PrecacheCommand {
       // Tizen stamp files. They must be restored.
       final String? engineStamp = _cache.getStampFor(kTizenEngineStampName);
       final String? embedderStamp = _cache.getStampFor(kTizenEmbedderStampName);
-      final FlutterCommandResult result = await super.runCommand();
-      if (engineStamp != null) {
-        _cache.setStampFor(kTizenEngineStampName, engineStamp);
+
+      try {
+        return await super.runCommand();
+      } finally {
+        if (engineStamp != null) {
+          _cache.setStampFor(kTizenEngineStampName, engineStamp);
+        }
+        if (embedderStamp != null) {
+          _cache.setStampFor(kTizenEmbedderStampName, embedderStamp);
+        }
       }
-      if (embedderStamp != null) {
-        _cache.setStampFor(kTizenEmbedderStampName, embedderStamp);
-      }
-      return result;
     }
 
     return FlutterCommandResult.success();
