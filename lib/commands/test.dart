@@ -57,6 +57,12 @@ class TizenTestRunner implements FlutterTestRunner {
       findPackageConfigFileOrDefault(project.directory),
       logger: globals.logger,
     );
+    // Avoid conflicts with the build-system generated dart plugin registrant.
+    // (We generate our own entrypoints for integration tests.)
+    if (project.dartPluginRegistrant.existsSync()) {
+      project.dartPluginRegistrant.deleteSync();
+    }
+
     final List<TizenPlugin> dartPlugins = await findTizenPlugins(project, dartOnly: true);
     final Directory runnerDir = globals.fs.systemTempDirectory.createTempSync();
 
