@@ -47,18 +47,20 @@ class TizenPrecacheCommand extends PrecacheCommand {
       await _cache.lock();
     }
 
-    if (includeAllPlatforms || includeDefaults || includeTizen) {
-      if (boolArg('force')) {
-        _cache.setStampFor(kTizenEngineStampName, '');
-        _cache.setStampFor(kTizenEmbedderStampName, '');
+    try {
+      if (includeAllPlatforms || includeDefaults || includeTizen) {
+        if (boolArg('force')) {
+          _cache.setStampFor(kTizenEngineStampName, '');
+          _cache.setStampFor(kTizenEmbedderStampName, '');
+        }
+        await _cache.updateAll(<DevelopmentArtifact>{
+          TizenDevelopmentArtifact.tizen,
+        });
       }
-      await _cache.updateAll(<DevelopmentArtifact>{
-        TizenDevelopmentArtifact.tizen,
-      });
+    } finally {
+      // Release lock of the cache.
+      _cache.releaseLock();
     }
-
-    // Release lock of the cache.
-    _cache.releaseLock();
 
     if (includeAllPlatforms || includeDefaults || _includeOtherPlatforms) {
       // If the --force option is set, super.runCommand() will delete all
