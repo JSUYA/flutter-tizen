@@ -151,8 +151,7 @@ class TizenDevicesCommandOutput {
         status.writeln();
       }
     }
-    status
-        .writeln('Run "flutter-tizen emulators" to list and start any available device emulators.');
+    status.writeln('Run "flutter-tizen emulators" to list and start any available emulators.');
     status.writeln();
     status.write(
       'If you expected ${foundAny ? 'another' : 'a'} device to be detected, please run "flutter-tizen doctor" to diagnose potential issues. ',
