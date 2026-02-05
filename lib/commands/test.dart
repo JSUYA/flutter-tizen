@@ -85,11 +85,20 @@ import '{{mainImport}}' as entrypoint;
 {{#plugins}}
 import 'package:{{name}}/{{name}}.dart';
 {{/plugins}}
+import 'package:flutter/src/dart_plugin_registrant.dart';
+
+@pragma('vm:entry-point')
+class _PluginRegistrant {
+  @pragma('vm:entry-point')
+  static void register() {
+{{#plugins}}
+    {{dartPluginClass}}.register();
+{{/plugins}}
+  }
+}
 
 void main() {
-{{#plugins}}
-  {{dartPluginClass}}.register();
-{{/plugins}}
+  _PluginRegistrant.register();
   entrypoint.main();
 }
 ''',
