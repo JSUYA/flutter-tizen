@@ -172,10 +172,14 @@ class DotnetTpk extends TizenPackage {
 
     // TODO(jsuya): Due to a bug in the `tz set` command, it fails
     // to automatically generate tizen_dotnet_project.yaml. So
-    // create it manually and `tz set` command. This will be fixed
+    // create it manually before running `tz set`. This will be fixed
     // in the next version of Tizen SDK.
     // https://github.com/flutter-tizen/flutter-tizen/issues/610
-    tizenProject.hostAppRoot.childFile('tizen_dotnet_project.yaml').createSync(recursive: true);
+    final File dotnetProjectYaml =
+        tizenProject.hostAppRoot.childFile('tizen_dotnet_project.yaml');
+    if (!dotnetProjectYaml.existsSync()) {
+      dotnetProjectYaml.createSync(recursive: true);
+    }
 
     final RunResult result = await tizenSdk!.tzBuild(
       tizenProject.hostAppRoot.path,
