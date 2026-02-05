@@ -307,7 +307,10 @@ Future<void> generateEntrypointWithPluginRegistrant(
   );
   final Uri mainUri = packageConfig.toPackageUri(mainFileUri) ?? mainFileUri;
   final List<String> dartEntrypoints = _findDartEntrypoints(mainFile);
-  final List<TizenPlugin> dartPlugins = await findTizenPlugins(project, dartOnly: true);
+  // Do not include dev_dependency plugins in the generated registrant.
+  // Mirrors upstream flutter_tools behavior for non-Android registrants.
+  final List<TizenPlugin> dartPlugins =
+      (await findTizenPlugins(project, dartOnly: true)).where((p) => !p.isDevDependency).toList();
 
   final context = <String, Object>{
     'mainImport': mainUri.toString(),
