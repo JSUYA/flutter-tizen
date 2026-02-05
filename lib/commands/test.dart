@@ -57,7 +57,8 @@ class TizenTestRunner implements FlutterTestRunner {
       findPackageConfigFileOrDefault(project.directory),
       logger: globals.logger,
     );
-    final List<TizenPlugin> dartPlugins = await findTizenPlugins(project, dartOnly: true);
+    final List<TizenPlugin> dartPlugins =
+        (await findTizenPlugins(project, dartOnly: true)).where((p) => !p.isDevDependency).toList();
     final Directory runnerDir = globals.fs.systemTempDirectory.createTempSync();
 
     final newTestFiles = <Uri>[];
@@ -83,7 +84,7 @@ class TizenTestRunner implements FlutterTestRunner {
 
 import '{{mainImport}}' as entrypoint;
 {{#plugins}}
-import 'package:{{name}}/{{name}}.dart';
+import 'package:{{name}}/{{dartFileName}}';
 {{/plugins}}
 
 void main() {
@@ -173,7 +174,7 @@ void main() {
       integrationTestUserIdentifier: integrationTestUserIdentifier,
       testTimeRecorder: testTimeRecorder,
       nativeAssetsBuilder: nativeAssetsBuilder,
-      buildInfo: buildInfo!,
+      buildInfo: buildInfo ?? debuggingOptions.buildInfo,
     );
   }
 
