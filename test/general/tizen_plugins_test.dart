@@ -19,6 +19,7 @@ import '../src/test_flutter_command_runner.dart';
 enum PluginType {
   none,
   dart,
+  dartWithFileName,
   dotnet,
   native,
 }
@@ -61,14 +62,19 @@ void main() {
   String getPubspecString(Package package) {
     final PluginType type = package.pluginType;
     var platformsField = '';
-    if (type == PluginType.dart) {
+    if (type == PluginType.dart || type == PluginType.dartWithFileName) {
+      final String dartFileName = type == PluginType.dartWithFileName
+          ? '${package.name}_impl.dart'
+          : '${package.name}.dart';
+      final String dartFileNameField =
+          type == PluginType.dartWithFileName ? '        dartFileName: $dartFileName\n' : '';
       platformsField = '''
 flutter:
   plugin:
     platforms:
       tizen:
         dartPluginClass: ${snakeToCamel(package.name)}
-        fileName: ${package.name}.dart
+${dartFileNameField}        fileName: $dartFileName
 ''';
     } else if (type == PluginType.dotnet) {
       platformsField = '''
@@ -147,6 +153,40 @@ ${package.devDependencies.map((String d) => '  $d: {path: $d}').join('\n')}
     writePubspecs(graph);
     writePackageGraph(graph);
   }
+
+  testUsingContext('Generates Dart plugin registrant with dartFileName', () async {
+    final command = _DummyFlutterCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    fileSystem.file('tizen/tizen-manifest.xml').createSync(recursive: true);
+
+    await validatesComputeTransitiveDependencies(<Package>[
+      (
+        name: 'my_app',
+        pluginType: PluginType.none,
+        dependencies: <String>['some_dart_plugin'],
+        devDependencies: <String>[],
+      ),
+      (
+        name: 'some_dart_plugin',
+        pluginType: PluginType.dartWithFileName,
+        dependencies: <String>[],
+        devDependencies: <String>[],
+      ),
+    ]);
+    await runner.run(<String>['dummy']);
+
+    final File generatedMain = fileSystem.file('tizen/flutter/generated_main.dart');
+    expect(generatedMain, exists);
+    expect(
+        generatedMain.readAsStringSync(),
+        contains(
+          "import 'package:some_dart_plugin/some_dart_plugin_impl.dart';",
+        ));
+  }, overrides: <Type, Generator>{
+    FileSystem: () => fileSystem,
+    ProcessManager: () => FakeProcessManager.any(),
+  }, testOn: 'posix');
 
   testUsingContext('Generates Dart plugin registrant', () async {
     final command = _DummyFlutterCommand();

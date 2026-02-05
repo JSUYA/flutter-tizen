@@ -63,6 +63,7 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
     this.namespace,
     this.pluginClass,
     this.dartPluginClass,
+    this.dartFileName,
     this.fileName,
     required this.isDevDependency,
   }) : assert(pluginClass != null || dartPluginClass != null);
@@ -74,16 +75,43 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
     required bool isDevDependency,
   }) {
     assert(validate(yaml));
+
+    final String? pluginClass = yaml[kPluginClass] as String?;
+    final String? dartPluginClass = yaml[kDartPluginClass] as String?;
+    final String? dartFileName = yaml[kDartFileName] as String?;
+
+    // Keep behavior aligned with upstream flutter_tools:
+    // - `dartPluginClass: none` is considered invalid and should be removed.
+    // - `pluginClass: none` is not supported.
+    if (_isNone(pluginClass) || _isNone(dartPluginClass)) {
+      throwToolExit(
+        'Invalid plugin configuration for "$name" on Tizen: '
+        '`pluginClass`/`dartPluginClass` cannot be "none". '
+        'Remove the key entirely (or provide a real class name).',
+      );
+    }
+
+    // Align with upstream: dartFileName requires dartPluginClass.
+    if (dartFileName != null && dartPluginClass == null) {
+      throwToolExit(
+        'Invalid plugin configuration for "$name" on Tizen: '
+        '"$kDartFileName" cannot be specified without "$kDartPluginClass".',
+      );
+    }
+
     return TizenPlugin(
       name: name,
       directory: directory,
       namespace: yaml[kNamespace] as String?,
-      pluginClass: yaml[kPluginClass] as String?,
-      dartPluginClass: yaml[kDartPluginClass] as String?,
+      pluginClass: pluginClass,
+      dartPluginClass: dartPluginClass,
+      dartFileName: dartFileName,
       fileName: yaml[kFileName] as String?,
       isDevDependency: isDevDependency,
     );
   }
+
+  static bool _isNone(String? value) => value != null && value.trim().toLowerCase() == 'none';
 
   static bool validate(YamlMap yaml) {
     return yaml[kPluginClass] is String || yaml[kDartPluginClass] is String;
@@ -96,6 +124,7 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
   final String? namespace;
   final String? pluginClass;
   final String? dartPluginClass;
+  final String? dartFileName;
   final String? fileName;
   final bool isDevDependency;
 
@@ -118,6 +147,7 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
       if (namespace != null) kNamespace: namespace,
       if (pluginClass != null) kPluginClass: pluginClass,
       if (dartPluginClass != null) kDartPluginClass: dartPluginClass,
+      if (dartPluginClass != null) kDartFileName: dartFileName ?? '$name.dart',
       if (fileName != null) kFileName: fileName,
       if (fileName != null) kFilePath: directory.childFile(fileName!).path,
       if (libName != null) kLibName: isSharedLib ? libName : 'flutter_plugins',
@@ -251,7 +281,7 @@ const _generatedMainTemplate = '''
 
 import '{{mainImport}}' as entrypoint;
 {{#plugins}}
-import 'package:{{name}}/{{name}}.dart';
+import 'package:{{name}}/{{dartFileName}}';
 {{/plugins}}
 import 'package:flutter/src/dart_plugin_registrant.dart';
 
