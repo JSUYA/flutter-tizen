@@ -68,8 +68,9 @@ class TizenTestRunner implements FlutterTestRunner {
         packageConfig.packageOf(testFileUri),
         Cache.flutterRoot!,
       );
+      final Uri mainUri = packageConfig.toPackageUri(testFileUri) ?? testFileUri;
       final context = <String, Object>{
-        'mainImport': testFileUri.toString(),
+        'mainImport': mainUri.toString(),
         'dartLanguageVersion': languageVersion.toString(),
         'plugins': dartPlugins.map((TizenPlugin plugin) => plugin.toMap()),
       };
