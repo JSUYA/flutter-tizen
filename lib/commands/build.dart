@@ -37,6 +37,7 @@ class BuildTpkCommand extends BuildSubCommand with DartPluginRegistry, TizenRequ
     required bool verboseHelp,
   }) : super(verboseHelp: verboseHelp) {
     addCommonDesktopBuildOptions(verboseHelp: verboseHelp);
+    addBuildPerformanceFile(hide: !verboseHelp);
     argParser.addOption(
       'target-arch',
       defaultsTo: 'arm',
