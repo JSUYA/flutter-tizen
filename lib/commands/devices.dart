@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_tools/src/base/common.dart';
 import 'package:flutter_tools/src/base/logger.dart';
 import 'package:flutter_tools/src/base/platform.dart';
+import 'package:flutter_tools/src/base/terminal.dart';
 import 'package:flutter_tools/src/base/utils.dart';
 import 'package:flutter_tools/src/commands/devices.dart';
 import 'package:flutter_tools/src/device.dart';
@@ -103,6 +104,96 @@ class TizenDevicesCommandOutput {
 
   /// Source: [DevicesCommandOutput.findAndOutputAllTargetDevices] in `devices.dart`
   Future<void> findAndOutputAllTargetDevices({required bool machine}) async {
+    // Match upstream behavior: if the user did not set a timeout and did not
+    // filter to attached-only devices, perform longer wireless discovery.
+    if (deviceDiscoveryTimeout == null &&
+        deviceConnectionInterface != DeviceConnectionInterface.attached) {
+      if (machine) {
+        final List<Device> devices = await _deviceManager?.refreshAllDevices(
+              filter: DeviceDiscoveryFilter(deviceConnectionInterface: deviceConnectionInterface),
+              timeout: DeviceManager.minimumWirelessDeviceDiscoveryTimeout,
+            ) ??
+            <Device>[];
+        await printDevicesAsJson(devices);
+        return;
+      }
+
+      final Future<void>? extendedWirelessDiscovery =
+          _deviceManager?.refreshExtendedWirelessDeviceDiscoverers(
+        timeout: DeviceManager.minimumWirelessDeviceDiscoveryTimeout,
+      );
+
+      var attachedDevices = <Device>[];
+      final DeviceManager? deviceManager = _deviceManager;
+      if (deviceManager != null) {
+        attachedDevices = await _getAttachedDevices(deviceManager);
+      }
+
+      // Number of lines to clear starts at 1 because it's inclusive of the line
+      // the cursor is on, which will be blank for this use case.
+      var numLinesToClear = 1;
+
+      // Display list of attached devices.
+      if (attachedDevices.isNotEmpty) {
+        _logger.printStatus(
+          'Found ${attachedDevices.length} connected ${pluralize('device', attachedDevices.length)}:',
+        );
+        await TizenDevice.printDevices(attachedDevices, _logger, prefix: '  ');
+        _logger.printStatus('');
+        numLinesToClear += 1;
+      }
+
+      // Display waiting message.
+      if (attachedDevices.isEmpty && _includeAttachedDevices) {
+        _logger.printStatus('No devices found yet. Checking for wireless devices...');
+      } else {
+        _logger.printStatus('Checking for wireless devices...');
+      }
+      numLinesToClear += 1;
+
+      final Status waitingStatus = _logger.startSpinner();
+      await extendedWirelessDiscovery;
+
+      var wirelessDevices = <Device>[];
+      if (deviceManager != null) {
+        wirelessDevices = await _getWirelessDevices(deviceManager);
+      }
+      waitingStatus.stop();
+
+      final Terminal terminal = _logger.terminal;
+      if (_logger.isVerbose && _includeAttachedDevices) {
+        // Reprint the attached devices.
+        if (attachedDevices.isNotEmpty) {
+          _logger.printStatus(
+            '\nFound ${attachedDevices.length} connected ${pluralize('device', attachedDevices.length)}:',
+          );
+          await TizenDevice.printDevices(attachedDevices, _logger, prefix: '  ');
+        }
+      } else if (terminal.supportsColor && terminal is AnsiTerminal) {
+        _logger.printStatus(terminal.clearLines(numLinesToClear), newline: false);
+      }
+
+      if (attachedDevices.isNotEmpty || !_logger.terminal.supportsColor) {
+        _logger.printStatus('');
+      }
+
+      if (wirelessDevices.isEmpty) {
+        if (attachedDevices.isEmpty) {
+          _logger.printStatus('No authorized devices detected.');
+        } else {
+          _logger.printStatus('No wireless devices were found.');
+        }
+      } else {
+        _logger.printStatus(
+          'Found ${wirelessDevices.length} wirelessly connected ${pluralize('device', wirelessDevices.length)}:',
+        );
+        await TizenDevice.printDevices(wirelessDevices, _logger, prefix: '  ');
+      }
+
+      await _printDiagnostics(foundAny: wirelessDevices.isNotEmpty || attachedDevices.isNotEmpty);
+      return;
+    }
+
     var attachedDevices = <Device>[];
     var wirelessDevices = <Device>[];
     final DeviceManager? deviceManager = _deviceManager;
