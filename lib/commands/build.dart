@@ -97,6 +97,7 @@ class BuildModuleCommand extends BuildSubCommand with DartPluginRegistry, TizenR
     addEnableExperimentation(hide: !verboseHelp);
     addSplitDebugInfoOption();
     addTreeShakeIconsFlag();
+    addBuildPerformanceFile(hide: !verboseHelp);
     usesDartDefineOption();
     usesExtraDartFlagOptions(verboseHelp: verboseHelp);
     usesPubOption();
