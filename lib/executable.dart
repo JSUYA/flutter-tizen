@@ -83,7 +83,9 @@ Future<void> main(List<String> args) async {
   final bool verboseHelp = help && verbose;
   final bool daemon = args.contains('daemon');
   final bool widgetPreviews = args.contains(WidgetPreviewCommand.kWidgetPreview);
-  final bool runMachine = args.contains('--machine') && args.contains('run');
+  // Match upstream behavior: --machine controls JSON-safe logging for all
+  // applicable commands, not just `run`.
+  final bool runMachine = args.contains('--machine');
 
   Cache.flutterRoot = join(rootPath, 'flutter');
 
