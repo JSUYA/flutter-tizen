@@ -155,7 +155,29 @@ abstract class TizenCachedArtifacts extends EngineCachedArtifact {
     FileSystem fileSystem,
     OperatingSystemUtils operatingSystemUtils,
   ) async {
-    final downloadUrl = '$kGithubBaseUrl/$_repoName/releases/download/$shortVersion';
+    final String shortVersion7 = shortVersion;
+    try {
+      await _downloadForVersion(shortVersion7, operatingSystemUtils);
+      return;
+    } catch (e) {
+      final String? ver = version;
+      final String shortVersion8 =
+          ver != null && ver.length > 8 ? ver.substring(0, 8) : shortVersion7;
+      if (shortVersion8 == shortVersion7) {
+        rethrow;
+      }
+      _logger.printStatus(
+        'Download failed with revision $shortVersion7, retrying with $shortVersion8...',
+      );
+      await _downloadForVersion(shortVersion8, operatingSystemUtils);
+    }
+  }
+
+  Future<void> _downloadForVersion(
+    String releaseVersion,
+    OperatingSystemUtils operatingSystemUtils,
+  ) async {
+    final downloadUrl = '$kGithubBaseUrl/$_repoName/releases/download/$releaseVersion';
 
     for (final List<String> toolsDir in getBinaryDirs()) {
       final String cacheDir = toolsDir[0];
