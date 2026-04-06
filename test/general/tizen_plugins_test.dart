@@ -353,6 +353,15 @@ internal class GeneratedPluginRegistrant
     }
 }
 '''));
+
+    final File hostedBundleManifest =
+        fileSystem.file('tizen/flutter/hosted_bundle_manifest.json');
+    expect(hostedBundleManifest, exists);
+    expect(hostedBundleManifest.readAsStringSync(), contains('"library": "libflutter_plugins.so"'));
+    expect(
+      hostedBundleManifest.readAsStringSync(),
+      contains('"registerSymbol": "SomeNativePluginRegisterWithRegistrar"'),
+    );
   }, overrides: <Type, Generator>{
     FileSystem: () => fileSystem,
     ProcessManager: () => FakeProcessManager.any(),

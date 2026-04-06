@@ -46,6 +46,9 @@ const kFilePath = 'filePath';
 /// Constant for 'libName' key in plugin maps.
 const kLibName = 'libName';
 
+/// File name for hosted mini-app metadata consumed by a Super app host.
+const kHostedBundleManifestFileName = 'hosted_bundle_manifest.json';
+
 /// Contains the parameters to template a Tizen plugin.
 ///
 /// The [name] of the plugin is required. Either [dartPluginClass] or
@@ -393,6 +396,7 @@ Future<void> injectTizenPlugins(FlutterProject project) async {
     }
     await _writeAppDepndencyInfo(project);
     await _writeTizenPluginRegistrant(tizenProject, cppPlugins, dotnetPlugins);
+    await _writeHostedBundleManifest(tizenProject, cppPlugins);
     if (tizenProject.isDotnet) {
       await _writeIntermediateDotnetFiles(tizenProject, dotnetPlugins);
     }
@@ -607,6 +611,27 @@ Future<void> _writeTizenPluginRegistrant(
       project.managedDirectory.childFile('generated_plugin_registrant.h'),
     );
   }
+}
+
+Future<void> _writeHostedBundleManifest(
+  TizenProject project,
+  List<TizenPlugin> cppPlugins,
+) async {
+  final manifest = <String, Object>{
+    'info': 'This is a generated file for hosted mini-app loading.',
+    'schemaVersion': 1,
+    'plugins': cppPlugins
+        .map((TizenPlugin plugin) => <String, String>{
+              'name': plugin.pluginClass ?? plugin.name,
+              'library':
+                  'lib${(plugin.libName != null && plugin.isSharedLib) ? plugin.libName! : 'flutter_plugins'}.so',
+              'registerSymbol': '${plugin.pluginClass}RegisterWithRegistrar',
+            })
+        .toList(),
+  };
+  final File file = project.managedDirectory.childFile(kHostedBundleManifestFileName);
+  await file.create(recursive: true);
+  await file.writeAsString(const JsonEncoder.withIndent('  ').convert(manifest));
 }
 
 // Reserved for future use.

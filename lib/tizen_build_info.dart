@@ -13,12 +13,14 @@ class TizenBuildInfo {
     required this.targetArch,
     required this.deviceProfile,
     this.securityProfile,
+    this.includeSharedEngineArtifacts = true,
   });
 
   final BuildInfo buildInfo;
   final String targetArch;
   final String deviceProfile;
   final String? securityProfile;
+  final bool includeSharedEngineArtifacts;
 }
 
 /// See: [getNameForTargetPlatform] in `build_info.dart`

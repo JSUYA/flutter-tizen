@@ -120,6 +120,13 @@ class BuildModuleCommand extends BuildSubCommand with DartPluginRegistry, TizenR
       help: 'The absolute path to the directory where the files are generated. '
           'By default, this is "<current-directory>/build/tizen/module".',
     );
+    argParser.addFlag(
+      'include-shared-engine',
+      defaultsTo: true,
+      help: 'Whether to include libflutter_engine.so, libflutter_tizen.so, '
+          'and icudtl.dat in the output. Disable this when the host app '
+          'already provides shared engine artifacts.',
+    );
   }
 
   @override
@@ -135,6 +142,7 @@ class BuildModuleCommand extends BuildSubCommand with DartPluginRegistry, TizenR
       buildInfo,
       targetArch: stringArg('target-arch')!,
       deviceProfile: stringArg('device-profile')!,
+      includeSharedEngineArtifacts: boolArg('include-shared-engine'),
     );
     _validateBuild(tizenBuildInfo);
 

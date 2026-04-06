@@ -12,6 +12,7 @@ import 'package:flutter_tools/src/project.dart';
 import 'package:meta/meta.dart';
 
 import '../tizen_build_info.dart';
+import '../tizen_plugins.dart';
 import '../tizen_project.dart';
 import '../tizen_sdk.dart';
 import '../tizen_tpk.dart';
@@ -51,6 +52,15 @@ abstract class TizenPackage extends Target {
         else
           ReleaseTizenApplication(buildInfo),
       ];
+}
+
+void copyHostedBundleManifest(TizenProject tizenProject, Directory flutterAssetsDir) {
+  final File hostedBundleManifest =
+      tizenProject.managedDirectory.childFile(kHostedBundleManifestFileName);
+  if (hostedBundleManifest.existsSync()) {
+    hostedBundleManifest
+        .copySync(flutterAssetsDir.childFile(hostedBundleManifest.basename).path);
+  }
 }
 
 class DotnetTpk extends TizenPackage {
@@ -495,17 +505,21 @@ class DotnetModule extends TizenPackage {
     final File engineBinary = engineDir.childFile('libflutter_engine.so');
     final File embedder = embedderDir.childFile('libflutter_tizen_$profile.so');
     final File icuData = engineDir.childFile('icudtl.dat');
+    final Directory flutterAssetsDir = resDir.childDirectory('flutter_assets');
 
-    engineBinary.copySync(libDir.childFile(engineBinary.basename).path);
-    // The embedder so name is statically defined in C# code and cannot be
-    // provided at runtime, so the file name must be a constant.
-    embedder.copySync(libDir.childFile('libflutter_tizen.so').path);
-    icuData.copySync(resDir.childFile(icuData.basename).path);
+    if (buildInfo.includeSharedEngineArtifacts) {
+      engineBinary.copySync(libDir.childFile(engineBinary.basename).path);
+      // The embedder so name is statically defined in C# code and cannot be
+      // provided at runtime, so the file name must be a constant.
+      embedder.copySync(libDir.childFile('libflutter_tizen.so').path);
+      icuData.copySync(resDir.childFile(icuData.basename).path);
+    }
 
     if (buildMode.isPrecompiled) {
       final File aotSnapshot = environment.buildDir.childFile('app.so');
       aotSnapshot.copySync(libDir.childFile('libapp.so').path);
     }
+    copyHostedBundleManifest(tizenProject, flutterAssetsDir);
 
     final File generatedPluginRegistrant =
         tizenProject.managedDirectory.childFile('GeneratedPluginRegistrant.cs');
@@ -570,7 +584,6 @@ class NativeModule extends TizenPackage {
     final File engineBinary = engineDir.childFile('libflutter_engine.so');
     final File embedder = embedderDir.childFile('libflutter_tizen_$profile.so');
     final File icuData = engineDir.childFile('icudtl.dat');
-
     engineBinary.copySync(libDir.childFile(engineBinary.basename).path);
     embedder.copySync(libDir.childFile(embedder.basename).path);
     icuData.copySync(resDir.childFile(icuData.basename).path);

@@ -93,7 +93,6 @@ void main() {
           .createSync(recursive: true);
       environment.buildDir.childFile('tizen_plugins/lib/libshared.so').createSync(recursive: true);
       projectDir.childDirectory('tizen').childFile('.app.deps.json').createSync(recursive: true);
-
       processManager.addCommands(<FakeCommand>[
         FakeCommand(
           command: const <String>[
@@ -243,7 +242,6 @@ type = app
           .createSync(recursive: true);
       environment.buildDir.childFile('tizen_plugins/lib/libshared.so').createSync(recursive: true);
       projectDir.childDirectory('tizen').childFile('.app.deps.json').createSync(recursive: true);
-
       await NativeTpk(const TizenBuildInfo(
         BuildInfo.release,
         targetArch: 'arm',
@@ -337,6 +335,7 @@ type = app
       final File embedder = outputDir.childFile('lib/libflutter_tizen.so');
       final File icuData = outputDir.childFile('res/icudtl.dat');
       final File aotSnapshot = outputDir.childFile('lib/libapp.so');
+      final File hostedBundleManifest = flutterAssetsDir.childFile('hosted_bundle_manifest.json');
       final File generatedPluginRegistrant =
           outputDir.childFile('src/GeneratedPluginRegistrant.cs');
       final File pluginsLib = outputDir.childFile('lib/libflutter_plugins.so');
@@ -346,6 +345,7 @@ type = app
       expect(embedder, exists);
       expect(icuData, exists);
       expect(aotSnapshot, exists);
+      expect(hostedBundleManifest, exists);
       expect(generatedPluginRegistrant, exists);
       expect(pluginsLib, exists);
     }, overrides: <Type, Generator>{
