@@ -66,10 +66,11 @@ namespace Tizen.Flutter.Embedding
 
     internal sealed class HostedFlutterAppHost : IDisposable
     {
-        private readonly Dictionary<string, HostedFlutterAppDefinition> _appCatalog;
+        private readonly Dictionary<string, HostedFlutterAppDefinition> _builtInAppCatalog;
         private readonly Dictionary<string, HostedFlutterWindow> _runningApps =
             new Dictionary<string, HostedFlutterWindow>(StringComparer.Ordinal);
         private readonly HostedFlutterAppHostOptions _options;
+        private readonly string _dataCatalogPath;
         private readonly string _logPrefix;
         private readonly string _packagedBundleRoot;
         private readonly string _sharedIcuDataPath;
@@ -106,9 +107,10 @@ namespace Tizen.Flutter.Embedding
             _sharedIcuDataPath = Path.Combine(resourceRoot, "icudtl.dat");
             _packagedBundleRoot = Path.Combine(resourceRoot, "flutter_assets", _options.AppBundleAssetsDirectory);
             _stagedBundleRoot = Path.Combine(dataRoot, _options.StagedBundleDirectoryName);
+            _dataCatalogPath = Path.Combine(_stagedBundleRoot, "apps.json");
 
             var catalogPath = Path.Combine(resourceRoot, "flutter_assets", _options.AppCatalogAssetPath);
-            _appCatalog = HostedFlutterAppCatalog.Load(catalogPath)
+            _builtInAppCatalog = HostedFlutterAppCatalog.Load(catalogPath)
                 .Apps
                 .Where(app => !string.IsNullOrWhiteSpace(app.Id))
                 .ToDictionary(app => app.Id, StringComparer.Ordinal);
@@ -166,14 +168,15 @@ namespace Tizen.Flutter.Embedding
         private ArrayList BuildMiniAppList()
         {
             var apps = new ArrayList();
-            foreach (var app in _appCatalog.Values)
+            foreach (var app in LoadMergedCatalog().Values)
             {
+                var bundlePath = ResolveBundlePath(app);
                 var entry = new Hashtable
                 {
                     ["id"] = app.Id,
                     ["title"] = app.Title ?? string.Empty,
                     ["description"] = app.Description ?? string.Empty,
-                    ["installed"] = Directory.Exists(Path.Combine(_stagedBundleRoot, app.Id)),
+                    ["installed"] = Directory.Exists(Path.Combine(bundlePath, "flutter_assets")),
                     ["running"] = _runningApps.ContainsKey(app.Id),
                 };
                 apps.Add(entry);
@@ -184,7 +187,7 @@ namespace Tizen.Flutter.Embedding
         private void PrepareMiniAppBundles()
         {
             Directory.CreateDirectory(_stagedBundleRoot);
-            foreach (var app in _appCatalog.Values)
+            foreach (var app in _builtInAppCatalog.Values)
             {
                 var source = Path.Combine(_packagedBundleRoot, app.Id);
                 var destination = Path.Combine(_stagedBundleRoot, app.Id);
@@ -199,7 +202,8 @@ namespace Tizen.Flutter.Embedding
             {
                 throw new FlutterException("bad-args", "launchMiniApp requires a mini app id.", null);
             }
-            if (!_appCatalog.ContainsKey(appId))
+            var catalog = LoadMergedCatalog();
+            if (!catalog.TryGetValue(appId, out var app))
             {
                 throw new FlutterException("launch-failed", "Unknown mini app id.", null);
             }
@@ -210,7 +214,7 @@ namespace Tizen.Flutter.Embedding
                 return;
             }
 
-            var bundlePath = Path.Combine(_stagedBundleRoot, appId);
+            var bundlePath = ResolveBundlePath(app);
             if (!Directory.Exists(Path.Combine(bundlePath, "flutter_assets")))
             {
                 throw new FlutterException(
@@ -244,6 +248,38 @@ namespace Tizen.Flutter.Embedding
                     "Failed to create a hosted mini app window.",
                     e.Message);
             }
+        }
+
+        private Dictionary<string, HostedFlutterAppDefinition> LoadMergedCatalog()
+        {
+            var mergedCatalog = new Dictionary<string, HostedFlutterAppDefinition>(
+                _builtInAppCatalog,
+                StringComparer.Ordinal);
+
+            foreach (var app in HostedFlutterAppCatalog.Load(_dataCatalogPath, warnIfMissing: false).Apps)
+            {
+                if (!string.IsNullOrWhiteSpace(app.Id))
+                {
+                    mergedCatalog[app.Id] = app;
+                }
+            }
+
+            return mergedCatalog;
+        }
+
+        private string ResolveBundlePath(HostedFlutterAppDefinition app)
+        {
+            if (string.IsNullOrWhiteSpace(app.BundlePath))
+            {
+                return Path.Combine(_stagedBundleRoot, app.Id);
+            }
+
+            if (Path.IsPathRooted(app.BundlePath))
+            {
+                return app.BundlePath;
+            }
+
+            return Path.Combine(_stagedBundleRoot, app.BundlePath);
         }
 
         private void CloseMiniApp(string appId)
@@ -336,11 +372,14 @@ namespace Tizen.Flutter.Embedding
         [DataMember(Name = "apps")]
         public List<HostedFlutterAppDefinition> Apps { get; set; } = new List<HostedFlutterAppDefinition>();
 
-        internal static HostedFlutterAppCatalog Load(string path)
+        internal static HostedFlutterAppCatalog Load(string path, bool warnIfMissing = true)
         {
             if (!File.Exists(path))
             {
-                TizenLog.Warn($"Hosted mini app catalog is missing: {path}");
+                if (warnIfMissing)
+                {
+                    TizenLog.Warn($"Hosted mini app catalog is missing: {path}");
+                }
                 return new HostedFlutterAppCatalog();
             }
 
@@ -372,5 +411,8 @@ namespace Tizen.Flutter.Embedding
 
         [DataMember(Name = "description")]
         public string Description { get; set; }
+
+        [DataMember(Name = "bundlePath")]
+        public string BundlePath { get; set; }
     }
 }
