@@ -3,8 +3,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:code_assets/code_assets.dart';
 import 'package:flutter_tools/src/base/common.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
+import 'package:flutter_tools/src/base/io.dart';
 import 'package:flutter_tools/src/build_info.dart';
 import 'package:flutter_tools/src/build_system/build_system.dart';
 import 'package:flutter_tools/src/build_system/depfile.dart';
@@ -12,12 +14,14 @@ import 'package:flutter_tools/src/build_system/exceptions.dart';
 import 'package:flutter_tools/src/build_system/targets/native_assets.dart';
 import 'package:flutter_tools/src/convert.dart';
 import 'package:flutter_tools/src/dart/package_map.dart';
+import 'package:flutter_tools/src/globals.dart' as globals;
 import 'package:flutter_tools/src/isolated/native_assets/dart_hook_result.dart';
 import 'package:flutter_tools/src/isolated/native_assets/linux/native_assets.dart';
 import 'package:flutter_tools/src/isolated/native_assets/native_assets.dart';
 import 'package:flutter_tools/src/isolated/native_assets/targets.dart';
 import 'package:meta/meta.dart';
 import 'package:package_config/package_config_types.dart';
+import 'package:process/process.dart';
 
 /// Source: [DartBuild] in `native_assets.dart`
 class TizenDartBuild extends Target {
@@ -230,16 +234,142 @@ class TizenFlutterNativeAssetsBuildRunnerImpl extends FlutterNativeAssetsBuildRu
     required super.includeDevDependencies,
   });
 
-  // TODO(JSUYA): Tizen uses Android's arm and arm64 TargetPlatforms. This caused the native_asset
-  // of flutter_tools to recognize the TargetOS as Android and use the NDK CCompiler. So, I added
-  // TizenFlutterNativeAssetsBuildRunnerImpl to modify the NativeAssetBuilder to use the Linux
-  // CCompiler(Tizen embedder) even when the asset is Android.
   @override
   Future<void> setCCompilerConfig(CodeAssetTarget target) async {
     if (target is AndroidAssetTarget) {
-      target.cCompilerConfigSync = await cCompilerConfigLinux(throwIfNotFound: true);
+      target.cCompilerConfigSync = await _tizenCCompilerConfigLinux(
+        fileSystem: fileSystem,
+        processManager: globals.processManager,
+        throwIfNotFound: true,
+      );
     } else {
       await target.setCCompilerConfig();
     }
   }
+}
+
+Future<CCompilerConfig?> _tizenCCompilerConfigLinux({
+  required FileSystem fileSystem,
+  required ProcessManager processManager,
+  required bool throwIfNotFound,
+}) async {
+  final CCompilerConfig? upstreamConfig = await cCompilerConfigLinux(
+    throwIfNotFound: false,
+  );
+  if (upstreamConfig != null) {
+    return upstreamConfig;
+  }
+
+  const clangPpBinary = 'clang++';
+  const kClangBinaryOptions = <String>['clang'];
+  const kArBinaryOptions = <String>['llvm-ar', 'ar'];
+  const kLdBinaryOptions = <String>['ld.lld', 'ld'];
+
+  final ProcessResult whichResult = await processManager.run(<String>['which', clangPpBinary]);
+  if (whichResult.exitCode != 0) {
+    if (throwIfNotFound) {
+      throwToolExit(
+        'Failed to find $clangPpBinary on PATH.\n'
+        "Run 'sudo apt install clang'.",
+      );
+    }
+    return null;
+  }
+
+  File clangPpFile = fileSystem.file((whichResult.stdout as String).trim());
+  clangPpFile = fileSystem.file(await clangPpFile.resolveSymbolicLinks());
+
+  final Directory clangDir = clangPpFile.parent;
+
+  Uri? findExecutable({required List<String> possibleExecutableNames, required Directory path}) {
+    final Uri? found = _findExecutableIfExists(
+      possibleExecutableNames: possibleExecutableNames,
+      path: path,
+    );
+
+    if (found == null && throwIfNotFound) {
+      final String packageSuggestion = switch (possibleExecutableNames) {
+        kClangBinaryOptions => "Run 'sudo apt install clang'.",
+        kArBinaryOptions => "Run 'sudo apt install llvm'.",
+        _ => '',
+      };
+      throwToolExit(
+        'Failed to find any of $possibleExecutableNames in $path.'
+        '${packageSuggestion.isEmpty ? '' : '\n$packageSuggestion'}',
+      );
+    }
+
+    return found;
+  }
+
+  final Uri? compiler = findExecutable(
+    path: clangDir,
+    possibleExecutableNames: kClangBinaryOptions,
+  );
+  final Uri? archiver = findExecutable(
+    path: clangDir,
+    possibleExecutableNames: kArBinaryOptions,
+  );
+
+  Uri? linker = _findExecutableIfExists(
+    possibleExecutableNames: kLdBinaryOptions,
+    path: clangDir,
+  );
+  linker ??= await _findExecutableOnPath(
+    fileSystem: fileSystem,
+    processManager: processManager,
+    possibleExecutableNames: kLdBinaryOptions,
+  );
+
+  if (linker == null && throwIfNotFound) {
+    throwToolExit(
+      'Failed to find any of $kLdBinaryOptions in LocalDirectory: '
+      "'${clangDir.path}' or on PATH.\n"
+      "Run 'sudo apt install lld' or 'sudo apt install binutils' to install a linker.",
+    );
+  }
+
+  if (compiler == null || archiver == null || linker == null) {
+    assert(!throwIfNotFound);
+    return null;
+  }
+
+  return CCompilerConfig(
+    compiler: compiler,
+    archiver: archiver,
+    linker: linker,
+  );
+}
+
+Future<Uri?> _findExecutableOnPath({
+  required FileSystem fileSystem,
+  required ProcessManager processManager,
+  required List<String> possibleExecutableNames,
+}) async {
+  for (final executableName in possibleExecutableNames) {
+    final ProcessResult whichResult = await processManager.run(<String>['which', executableName]);
+    if (whichResult.exitCode != 0) {
+      continue;
+    }
+
+    File executable = fileSystem.file((whichResult.stdout as String).trim());
+    if (!executable.existsSync()) {
+      continue;
+    }
+
+    executable = fileSystem.file(await executable.resolveSymbolicLinks());
+    return executable.uri;
+  }
+  return null;
+}
+
+Uri? _findExecutableIfExists({
+  required List<String> possibleExecutableNames,
+  required Directory path,
+}) {
+  return possibleExecutableNames
+      .map((execName) => path.childFile(execName))
+      .where((file) => file.existsSync())
+      .map((file) => file.uri)
+      .firstOrNull;
 }
