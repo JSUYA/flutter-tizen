@@ -13,9 +13,7 @@ import 'package:flutter_tools/src/build_system/targets/native_assets.dart';
 import 'package:flutter_tools/src/convert.dart';
 import 'package:flutter_tools/src/dart/package_map.dart';
 import 'package:flutter_tools/src/isolated/native_assets/dart_hook_result.dart';
-import 'package:flutter_tools/src/isolated/native_assets/linux/native_assets.dart';
 import 'package:flutter_tools/src/isolated/native_assets/native_assets.dart';
-import 'package:flutter_tools/src/isolated/native_assets/targets.dart';
 import 'package:meta/meta.dart';
 import 'package:package_config/package_config_types.dart';
 
@@ -64,7 +62,7 @@ class TizenDartBuild extends Target {
     final buildMode = BuildMode.fromCliName(buildModeEnvironment);
     final bool includeDevDependencies = !buildMode.isRelease;
     final FlutterNativeAssetsBuildRunner buildRunner = _buildRunner ??
-        TizenFlutterNativeAssetsBuildRunnerImpl(
+        FlutterNativeAssetsBuildRunnerImpl(
           environment.packageConfigPath,
           packageConfig,
           fileSystem,
@@ -76,7 +74,7 @@ class TizenDartBuild extends Target {
     result = await runFlutterSpecificHooks(
       environmentDefines: environment.defines,
       buildRunner: buildRunner,
-      targetPlatform: targetPlatform,
+      targetPlatform: _toLinuxTargetPlatform(targetPlatform),
       projectUri: projectUri,
       fileSystem: fileSystem,
     );
@@ -168,7 +166,7 @@ class TizenInstallCodeAssets extends Target {
     await installCodeAssets(
       dartHookResult: dartHookResult,
       environmentDefines: environment.defines,
-      targetPlatform: targetPlatform,
+      targetPlatform: _toLinuxTargetPlatform(targetPlatform),
       projectUri: projectUri,
       fileSystem: fileSystem,
       nativeAssetsFileUri: nativeAssetsFileUri,
@@ -219,27 +217,20 @@ TargetPlatform _getTargetPlatformFromEnvironment(Environment environment, String
   return getTargetPlatformForName(targetPlatformEnvironment);
 }
 
-class TizenFlutterNativeAssetsBuildRunnerImpl extends FlutterNativeAssetsBuildRunnerImpl {
-  TizenFlutterNativeAssetsBuildRunnerImpl(
-    super.packageConfigPath,
-    super.packageConfig,
-    super.fileSystem,
-    super.logger,
-    super.runPackageName,
-    super.pubspecPath, {
-    required super.includeDevDependencies,
-  });
-
-  // TODO(JSUYA): Tizen uses Android's arm and arm64 TargetPlatforms. This caused the native_asset
-  // of flutter_tools to recognize the TargetOS as Android and use the NDK CCompiler. So, I added
-  // TizenFlutterNativeAssetsBuildRunnerImpl to modify the NativeAssetBuilder to use the Linux
-  // CCompiler(Tizen embedder) even when the asset is Android.
-  @override
-  Future<void> setCCompilerConfig(CodeAssetTarget target) async {
-    if (target is AndroidAssetTarget) {
-      target.cCompilerConfigSync = await cCompilerConfigLinux(throwIfNotFound: true);
-    } else {
-      await target.setCCompilerConfig();
-    }
-  }
+/// Maps Android [TargetPlatform]s to their Linux equivalents for native assets.
+///
+/// Tizen is a Linux-based OS but borrows Android's TargetPlatform values
+/// (android_arm, android_arm64, android_x64) because Flutter has no Tizen
+/// TargetPlatform. For native asset hooks, this mismatch causes plugins to
+/// receive OS.android and attempt to use Android NDK toolchains.
+///
+/// By remapping to Linux TargetPlatforms, the upstream pipeline creates
+/// [LinuxAssetTarget] instead of [AndroidAssetTarget], so plugin hooks
+/// see OS.linux and use the host Linux toolchain.
+TargetPlatform _toLinuxTargetPlatform(TargetPlatform platform) {
+  return switch (platform) {
+    TargetPlatform.android_arm64 => TargetPlatform.linux_arm64,
+    TargetPlatform.android_x64 => TargetPlatform.linux_x64,
+    _ => platform,
+  };
 }
