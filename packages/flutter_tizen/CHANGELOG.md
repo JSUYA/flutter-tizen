@@ -1,3 +1,12 @@
+## 0.3.0
+
+* Add `TizenMultiView` with `addView` / `removeView` helpers that wrap the
+  `flutter_tizen/multi_view` platform channel on the
+  `FlutterDesktopEngineAddView` / `FlutterDesktopEngineRemoveView` C APIs.
+  Secondary views are announced to the framework (visible through
+  `PlatformDispatcher.views`) but are not rendered until the embedder's
+  multi-view compositor lands.
+
 ## 0.2.7
 
 * Fix dart analyze issues.

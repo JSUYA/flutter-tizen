@@ -2,7 +2,7 @@ name: flutter_tizen
 description: Tizen utilities for Dart and Flutter.
 homepage: https://github.com/flutter-tizen/
 repository: https://github.com/flutter-tizen/flutter-tizen/
-version: 0.2.7
+version: 0.3.0
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

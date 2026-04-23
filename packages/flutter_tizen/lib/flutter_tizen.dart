@@ -4,6 +4,8 @@
 
 import 'dart:io';
 
+export 'src/services/tizen_multi_view.dart';
+
 /// Whether the current profile is TV profile.
 bool get isTvProfile {
   return Platform.environment['ELM_PROFILE'] == 'tv';
