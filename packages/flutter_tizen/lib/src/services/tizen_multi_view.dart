@@ -6,17 +6,20 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 
-/// A handle to a secondary view created via [TizenMultiView.addView].
+/// A handle to a secondary view created via `TizenMultiView.addView`.
 ///
-/// The [viewId] matches the identifier exposed on [FlutterView.viewId] and
-/// can be used in combination with [PlatformDispatcher.view] and
-/// [runWidget] to present a widget tree inside the secondary view:
+/// The [viewId] matches the identifier exposed on `FlutterView.viewId` and
+/// can be looked up through `PlatformDispatcher.view(id: ...)`.
 ///
-/// ```dart
-/// final handle = await TizenMultiView.addView(width: 400, height: 300);
-/// final view = PlatformDispatcher.instance.view(id: handle.viewId);
-/// runWidget(View(view: view!, child: SecondaryApp()));
-/// ```
+/// IMPORTANT: Until the Tizen embedder's multi-view compositor lands,
+/// secondary views are registered with the Flutter framework (so they show
+/// up in `PlatformDispatcher.views`) but their widget trees are NOT
+/// rendered to the platform window. Calling `runWidget(View(view: ...))`
+/// against a secondary view will build the tree and dispatch frames, but
+/// the pixels never reach the secondary window's surface. Today
+/// `TizenMultiView.addView` is therefore useful for (a) exercising the
+/// framework-side multi-view code paths, and (b) routing pointer events
+/// correctly via their `view_id`, but not yet for presenting UI.
 class TizenViewHandle {
   /// Creates a handle for the given view id.
   const TizenViewHandle(this.viewId);
@@ -43,8 +46,7 @@ class TizenViewHandle {
 class TizenMultiView {
   TizenMultiView._();
 
-  static const MethodChannel _channel =
-      MethodChannel('flutter_tizen/multi_view');
+  static const _channel = MethodChannel('flutter_tizen/multi_view');
 
   /// Adds a new top-level Tizen window and registers it with the engine as a
   /// secondary view.
@@ -59,9 +61,10 @@ class TizenMultiView {
   /// requires the `http://tizen.org/privilege/window.priority.set` privilege
   /// in `tizen-manifest.xml`.
   ///
-  /// Returns a [TizenViewHandle] whose [viewId] is valid once the returned
-  /// future completes. Throws [PlatformException] if the engine rejected the
-  /// registration or if the platform window could not be created.
+  /// Returns a [TizenViewHandle] whose [TizenViewHandle.viewId] is valid
+  /// once the returned future completes. Throws [PlatformException] if the
+  /// engine rejected the registration or if the platform window could not
+  /// be created.
   static Future<TizenViewHandle> addView({
     int x = 0,
     int y = 0,
@@ -90,7 +93,7 @@ class TizenMultiView {
     return TizenViewHandle(id);
   }
 
-  /// Removes a secondary view previously returned by [addView].
+  /// Removes a secondary view previously returned by `addView`.
   ///
   /// Attempting to remove the implicit view (id 0) throws [ArgumentError]
   /// because the implicit view is tied to the engine's own lifetime.

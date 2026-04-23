@@ -131,10 +131,15 @@ FlutterDesktopEngineRef FlutterEngine::RelinquishEngine() {
 namespace {
 
 // Context passed through the C callback. Owns a heap copy of the user's
-// std::function so it can outlive |AddView|'s stack frame.
+// std::function so it can outlive |AddView|'s stack frame. The trampoline
+// below is the sole owner of this object and always deletes it; callers of
+// |FlutterDesktopEngineAddView| must not delete |ctx| themselves, even on
+// synchronous failure, because the C API guarantees the callback fires
+// exactly once.
 struct AddViewContext {
   FlutterDesktopEngineRef engine;
-  FlutterDesktopViewRef view;
+  FlutterDesktopViewRef view;  // Lazily populated; may still be null when the
+                                // trampoline fires after a synchronous failure.
   FlutterEngine::AddViewCallback callback;
 };
 
@@ -156,15 +161,23 @@ void AddViewTrampoline(bool added, FlutterDesktopViewId view_id,
 bool FlutterEngine::AddView(const FlutterDesktopWindowProperties& properties,
                             AddViewCallback callback) {
   if (!engine_) {
+    // The engine is not running, so |FlutterDesktopEngineAddView| cannot be
+    // issued. We haven't allocated a context yet, so invoke the user
+    // callback here with added=false to preserve the "callback fires
+    // exactly once" contract.
+    if (callback) {
+      callback(nullptr, false);
+    }
     return false;
   }
   auto* ctx = new AddViewContext{engine_, nullptr, std::move(callback)};
   FlutterDesktopViewRef view = FlutterDesktopEngineAddView(
       engine_, properties, &AddViewTrampoline, ctx);
+  // |FlutterDesktopEngineAddView|'s contract is that it always invokes our
+  // |AddViewTrampoline| (even on early/synchronous failure), which deletes
+  // |ctx|. Do NOT delete |ctx| here: doing so was a double-free on the
+  // sync-failure path.
   if (!view) {
-    // Synchronous failure: the C API did not schedule the async callback,
-    // so we must release the context here to avoid leaking it.
-    delete ctx;
     return false;
   }
   ctx->view = view;

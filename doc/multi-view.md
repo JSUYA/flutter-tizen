@@ -9,12 +9,22 @@ be added and removed at runtime through both C++ and Dart APIs.
 > registry, `FlutterEngineAddView`/`FlutterEngineRemoveView` wiring, shared
 > EGL display and share-group contexts, public C API, `flutter_tizen/multi_view`
 > platform channel, `FlutterView` C++ wrapper, `TizenMultiView` Dart helper).
-> Secondary views are **registered** with the Flutter framework so
-> `PlatformDispatcher.views` reports them, but they are **not yet rendered**:
-> the Tizen renderer config still routes every draw to the implicit view.
-> Rendering of secondary views requires a `FlutterCompositor` with a
-> `present_view_callback` and per-view backing stores, which is tracked as a
-> follow-up change on top of this foundation.
+>
+> **Secondary views do NOT render yet.** They are registered with the
+> Flutter framework so `PlatformDispatcher.views` reports them and pointer
+> events carry the correct `view_id`, but the Tizen renderer config still
+> sends every draw to the implicit view's surface. Calling
+> `runWidget(View(view: secondaryView))` will build a widget tree and
+> schedule frames, but no pixels reach the secondary window. Rendering
+> requires a `FlutterCompositor` with a `present_view_callback` and
+> per-view backing stores, which is tracked as a follow-up on top of this
+> foundation.
+>
+> **Secondary views share the engine's platform channels.** Channels like
+> `flutter/textinput`, `flutter/platform`, `flutter/window`, and
+> `flutter/mousecursor` are registered once at the engine level and always
+> route to the implicit view. Text input, clipboard, and similar features
+> therefore only work on the implicit view today.
 
 ## Why multi-view?
 
@@ -107,26 +117,23 @@ Notes:
 
 ## Using multi-view from Dart
 
-The `flutter_tizen` package exposes `TizenMultiView` in Dart:
+The `flutter_tizen` package exposes `TizenMultiView` in Dart. Today the
+helper is most useful for exercising the framework-side multi-view code
+paths and for verifying that input events carry the correct `view_id`:
 
 ```dart
-import 'package:flutter/widgets.dart';
 import 'package:flutter_tizen/flutter_tizen.dart';
 
-Future<void> openPip() async {
+Future<int> registerPip() async {
   final handle = await TizenMultiView.addView(
     width: 400,
     height: 300,
     topLevel: true,
   );
-
-  final view = PlatformDispatcher.instance.views.firstWhere(
-    (FlutterView v) => v.viewId == handle.viewId,
-  );
-
-  runWidget(
-    View(view: view, child: const PipOverlay()),
-  );
+  // handle.viewId now appears in PlatformDispatcher.instance.views.
+  // WARNING: rendering a widget tree into this view is not supported
+  // yet; see the Status note at the top of this doc.
+  return handle.viewId;
 }
 
 Future<void> closePip(int viewId) async {
@@ -134,9 +141,10 @@ Future<void> closePip(int viewId) async {
 }
 ```
 
-Each secondary view can host an independent widget tree by pairing
-`runWidget` with a `View(view: ...)` root. The implicit view (id 0)
-continues to work with the usual `runApp`.
+Once the FlutterCompositor follow-up lands, users will be able to pair
+`PlatformDispatcher.view(id:)` with `runWidget(View(view: ...))` to mount
+an independent widget tree inside each secondary window. The implicit
+view (id 0) continues to work with the usual `runApp`.
 
 ## Manifest considerations
 
@@ -159,6 +167,17 @@ continues to work with the usual `runApp`.
   collection reports every view correctly, but only the implicit view paints
   to its surface today. The follow-up work adds a `FlutterCompositor` that
   uses `present_view_callback` and creates one backing store per view.
+- **Platform channels are shared across views.** `flutter/textinput`,
+  `flutter/window`, `flutter/platform`, `flutter/mousecursor`, and
+  `flutter/platform_views` are registered once at the engine level and
+  always target the implicit view. Features layered on those channels
+  (text input, clipboard, cursor changes, platform view embedding, app
+  window manipulation) therefore only work on the implicit view until a
+  future change threads `viewId` through the channel payloads.
+- **External textures are anchored to the implicit view's renderer.**
+  `FlutterDesktopTextureRegistrar` uses the engine-level renderer accessor,
+  which resolves to the implicit view's renderer. Creating external
+  textures from a secondary view is not supported.
 - **NUI path (`FlutterDesktopViewCreateFromImageView`) stays single-view.**
   The DALi `ImageView` container is a single render target by design; a
   separate design is required before enabling multi-view in that path.
@@ -168,3 +187,8 @@ continues to work with the usual `runApp`.
   multi-view and do not thread `viewId` through their platform channels.
   Plugins that expose `PlatformView`s to a specific view need a follow-up to
   carry the view id in their arguments.
+- **Mixing Impeller and Skia EGL configs is rejected.** `TizenEglDisplay`
+  is a process-wide singleton and caches the first caller's
+  `enable_impeller` flag. Subsequent `Acquire()` calls with a different
+  flag return nullptr instead of silently handing back a mismatched
+  config.
