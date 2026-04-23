@@ -74,6 +74,27 @@ class TizenMultiView {
     bool topLevel = false,
     double userPixelRatio = 0.0,
   }) async {
+    if (width != null && width < 0) {
+      throw ArgumentError.value(
+        width,
+        'width',
+        'The view width must be non-negative.',
+      );
+    }
+    if (height != null && height < 0) {
+      throw ArgumentError.value(
+        height,
+        'height',
+        'The view height must be non-negative.',
+      );
+    }
+    if (userPixelRatio < 0.0) {
+      throw ArgumentError.value(
+        userPixelRatio,
+        'userPixelRatio',
+        'The user pixel ratio must be non-negative.',
+      );
+    }
     final int id = await _channel.invokeMethod<int>('addView', <String, Object?>{
           'x': x,
           'y': y,
@@ -105,11 +126,10 @@ class TizenMultiView {
         'The implicit view (id 0) cannot be removed at runtime.',
       );
     }
-    final bool ok =
-        await _channel.invokeMethod<bool>('removeView', <String, Object?>{
-              'viewId': viewId,
-            }) ??
-            false;
+    final bool ok = await _channel.invokeMethod<bool>('removeView', <String, Object?>{
+          'viewId': viewId,
+        }) ??
+        false;
     return ok;
   }
 

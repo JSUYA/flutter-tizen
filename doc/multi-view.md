@@ -106,8 +106,8 @@ int main(int argc, char* argv[]) {
 
 Notes:
 
-- The `AddViewCallback` is invoked asynchronously on the platform thread once
-  `FlutterEngineAddView` has acknowledged the new view.
+- The `AddViewCallback` is invoked once `FlutterEngineAddView` has
+  acknowledged the new view.
 - The returned `std::unique_ptr<FlutterView>` owns the view handle; keep it
   alive as long as the window should exist. Destroying it calls
   `FlutterDesktopEngineRemoveView`, which is also async but fire-and-forget

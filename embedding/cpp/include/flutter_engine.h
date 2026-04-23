@@ -94,10 +94,10 @@ class FlutterEngine : public flutter::PluginRegistry {
   // Adds a new secondary view to the running engine.
   //
   // Requires that the implicit view has been created (i.e. the engine is
-  // running). |callback| is invoked on the platform thread once the Flutter
-  // engine has acknowledged the new view. Returns false synchronously if
+  // running). |callback| is invoked once the Flutter engine has acknowledged
+  // the new view. Returns false synchronously if
   // the request could not be issued at all (engine not running, window
-  // creation failed, etc.); in that case |callback| is not invoked.
+  // creation failed, etc.); |callback| is still invoked with |added| false.
   //
   // NOTE: Until the multi-view compositor work lands, secondary views are
   // registered with the framework (PlatformDispatcher.views reflects them)
