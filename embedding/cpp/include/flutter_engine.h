@@ -10,12 +10,14 @@
 #include <flutter_tizen.h>
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "flutter_engine_arguments.h"
+#include "flutter_view.h"
 
 // The engine for Flutter execution.
 class FlutterEngine : public flutter::PluginRegistry {
@@ -82,6 +84,30 @@ class FlutterEngine : public flutter::PluginRegistry {
 
   // Gives up ownership of |engine_|, but keeps a weak reference to it.
   FlutterDesktopEngineRef RelinquishEngine();
+
+  // Async completion callback for |AddView|. On success |view| is the newly
+  // registered secondary view and |added| is true; on failure |view| is
+  // null.
+  using AddViewCallback =
+      std::function<void(std::unique_ptr<FlutterView> view, bool added)>;
+
+  // Adds a new secondary view to the running engine.
+  //
+  // Requires that the implicit view has been created (i.e. the engine is
+  // running). |callback| is invoked on the platform thread once the Flutter
+  // engine has acknowledged the new view. Returns false synchronously if
+  // the request could not be issued at all (engine not running, window
+  // creation failed, etc.); in that case |callback| is not invoked.
+  //
+  // NOTE: Until the multi-view compositor work lands, secondary views are
+  // registered with the framework (PlatformDispatcher.views reflects them)
+  // but their contents are not rendered.
+  bool AddView(const FlutterDesktopWindowProperties& properties,
+               AddViewCallback callback = {});
+
+  // Removes a secondary view previously created by |AddView|. The implicit
+  // view cannot be removed through this API.
+  bool RemoveView(FlutterDesktopViewId view_id);
 
   // |flutter::PluginRegistry|
   FlutterDesktopPluginRegistrarRef GetRegistrarForPlugin(

@@ -47,7 +47,23 @@ bool FlutterApp::OnCreate() {
     TizenLog::Error("Could not launch a Flutter application.");
     return false;
   }
+
+  // Fire the hook so that subclasses can register secondary views. This
+  // runs synchronously on the platform thread immediately after the
+  // implicit view has been created and the engine has been handed over to
+  // the C API; at this point |AddView| is safe to call.
+  OnImplicitViewReady();
+
   return true;
+}
+
+bool FlutterApp::AddView(const FlutterDesktopWindowProperties &properties,
+                         FlutterEngine::AddViewCallback callback) {
+  if (!engine_) {
+    TizenLog::Error("Cannot AddView before OnCreate has run.");
+    return false;
+  }
+  return engine_->AddView(properties, std::move(callback));
 }
 
 void FlutterApp::OnResume() {

@@ -128,6 +128,56 @@ FlutterDesktopEngineRef FlutterEngine::RelinquishEngine() {
   return engine_;
 }
 
+namespace {
+
+// Context passed through the C callback. Owns a heap copy of the user's
+// std::function so it can outlive |AddView|'s stack frame.
+struct AddViewContext {
+  FlutterDesktopEngineRef engine;
+  FlutterDesktopViewRef view;
+  FlutterEngine::AddViewCallback callback;
+};
+
+void AddViewTrampoline(bool added, FlutterDesktopViewId view_id,
+                       void* user_data) {
+  auto* ctx = static_cast<AddViewContext*>(user_data);
+  std::unique_ptr<FlutterView> view;
+  if (added && ctx->view) {
+    view = std::make_unique<FlutterView>(ctx->engine, ctx->view, view_id);
+  }
+  if (ctx->callback) {
+    ctx->callback(std::move(view), added);
+  }
+  delete ctx;
+}
+
+}  // namespace
+
+bool FlutterEngine::AddView(const FlutterDesktopWindowProperties& properties,
+                            AddViewCallback callback) {
+  if (!engine_) {
+    return false;
+  }
+  auto* ctx = new AddViewContext{engine_, nullptr, std::move(callback)};
+  FlutterDesktopViewRef view = FlutterDesktopEngineAddView(
+      engine_, properties, &AddViewTrampoline, ctx);
+  if (!view) {
+    // Synchronous failure: the C API did not schedule the async callback,
+    // so we must release the context here to avoid leaking it.
+    delete ctx;
+    return false;
+  }
+  ctx->view = view;
+  return true;
+}
+
+bool FlutterEngine::RemoveView(FlutterDesktopViewId view_id) {
+  if (!engine_) {
+    return false;
+  }
+  return FlutterDesktopEngineRemoveView(engine_, view_id, nullptr, nullptr);
+}
+
 FlutterDesktopPluginRegistrarRef FlutterEngine::GetRegistrarForPlugin(
     const std::string& plugin_name) {
   if (engine_) {

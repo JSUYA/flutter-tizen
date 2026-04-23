@@ -75,6 +75,23 @@ class FlutterApp : public flutter::PluginRegistry {
   FlutterDesktopPluginRegistrarRef GetRegistrarForPlugin(
       const std::string &plugin_name) override;
 
+  // Called after |OnCreate| has successfully created the implicit view but
+  // before returning to the Tizen app framework. Subclasses can override
+  // this to register secondary views via |AddView|; the default
+  // implementation does nothing.
+  virtual void OnImplicitViewReady() {}
+
+  // Registers a new secondary view with the running engine. Equivalent to
+  // calling |FlutterEngine::AddView| on the underlying engine but remains
+  // available to subclasses even though |FlutterApp| has already
+  // relinquished ownership of the engine to the C API.
+  //
+  // The app retains ownership of the returned wrapper via the callback;
+  // dropping it triggers the asynchronous RemoveView on the engine. Returns
+  // false synchronously when the request could not be scheduled.
+  bool AddView(const FlutterDesktopWindowProperties &properties,
+               FlutterEngine::AddViewCallback callback = {});
+
  protected:
   // The x-coordinate of the top left corner of the window.
   int32_t window_offset_x_ = 0;
