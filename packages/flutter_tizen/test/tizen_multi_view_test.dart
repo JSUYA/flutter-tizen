@@ -20,6 +20,8 @@ void main() {
       switch (call.method) {
         case 'addView':
           return 1;
+        case 'updateView':
+          return true;
         case 'removeView':
           return true;
       }
@@ -47,6 +49,27 @@ void main() {
     expect(calls.single.method, 'removeView');
   });
 
+  test('updateView returns bool', () async {
+    expect(
+      await TizenMultiView.updateView(
+        viewId: 1,
+        x: 10,
+        y: 20,
+        width: 400,
+        height: 300,
+      ),
+      isTrue,
+    );
+    expect(calls.single.method, 'updateView');
+    expect(calls.single.arguments, <String, Object?>{
+      'viewId': 1,
+      'x': 10,
+      'y': 20,
+      'width': 400,
+      'height': 300,
+    });
+  });
+
   test('addView rejects invalid geometry', () async {
     await expectLater(
       TizenMultiView.addView(width: -1, height: 300),
@@ -65,6 +88,19 @@ void main() {
 
   test('removeView rejects implicit view', () async {
     await expectLater(TizenMultiView.removeView(0), throwsArgumentError);
+    expect(calls, isEmpty);
+  });
+
+  test('updateView rejects invalid geometry', () async {
+    await expectLater(TizenMultiView.updateView(viewId: 0), throwsArgumentError);
+    await expectLater(
+      TizenMultiView.updateView(viewId: 1, width: -1),
+      throwsArgumentError,
+    );
+    await expectLater(
+      TizenMultiView.updateView(viewId: 1, height: -1),
+      throwsArgumentError,
+    );
     expect(calls, isEmpty);
   });
 }

@@ -98,6 +98,49 @@ class TizenMultiView {
     return TizenViewHandle(id);
   }
 
+  /// Updates the geometry of a secondary view without recreating it.
+  ///
+  /// The [viewId] must identify a view created by [addView]. [x], [y],
+  /// [width] and [height] are physical pixels. Passing null for a field keeps
+  /// the current native value for that field.
+  static Future<bool> updateView({
+    required int viewId,
+    int? x,
+    int? y,
+    int? width,
+    int? height,
+  }) async {
+    if (viewId == 0) {
+      throw ArgumentError.value(
+        viewId,
+        'viewId',
+        'The implicit view (id 0) cannot be updated through this API.',
+      );
+    }
+    if (width != null && width < 0) {
+      throw ArgumentError.value(
+        width,
+        'width',
+        'The view width must be non-negative.',
+      );
+    }
+    if (height != null && height < 0) {
+      throw ArgumentError.value(
+        height,
+        'height',
+        'The view height must be non-negative.',
+      );
+    }
+    return await _channel.invokeMethod<bool>('updateView', <String, Object?>{
+          'viewId': viewId,
+          'x': x,
+          'y': y,
+          'width': width,
+          'height': height,
+        }) ??
+        false;
+  }
+
   /// Removes a secondary view previously returned by `addView`.
   ///
   /// Attempting to remove the implicit view (id 0) throws [ArgumentError]

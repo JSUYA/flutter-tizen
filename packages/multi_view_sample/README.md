@@ -5,9 +5,8 @@ Interactive Tizen multi-view sample.
 This sample exercises the `flutter_tizen` multi-view API with a visual control
 surface. It can create several secondary Tizen views with different sizes,
 positions, transparency settings, and pixel ratios, then remove, duplicate,
-resize, and move them. Move and resize operations recreate the native secondary
-view because the current API exposes add/remove primitives rather than an
-in-place geometry update call.
+resize, and move them. Move and resize operations update the existing native
+secondary view geometry so content stays attached to the same `FlutterView`.
 
 By default the app attaches real Flutter widget trees to secondary
 `FlutterView`s. The content set covers dashboard and chart widgets, network

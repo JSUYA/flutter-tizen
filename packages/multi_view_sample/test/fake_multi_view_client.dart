@@ -4,6 +4,8 @@ class FakeMultiViewClient implements MultiViewClient {
   int _nextViewId = 1;
   final Set<int> _registered = <int>{0};
   final List<MultiViewRequest> addedRequests = <MultiViewRequest>[];
+  final List<int> updatedViewIds = <int>[];
+  final List<MultiViewRequest> updatedRequests = <MultiViewRequest>[];
   final List<int> removedViewIds = <int>[];
 
   @override
@@ -16,6 +18,16 @@ class FakeMultiViewClient implements MultiViewClient {
 
   @override
   List<int> registeredViewIds() => _registered.toList()..sort();
+
+  @override
+  Future<bool> updateView(int viewId, MultiViewRequest request) async {
+    if (!_registered.contains(viewId)) {
+      return false;
+    }
+    updatedViewIds.add(viewId);
+    updatedRequests.add(request);
+    return true;
+  }
 
   @override
   Future<bool> removeView(int viewId) async {

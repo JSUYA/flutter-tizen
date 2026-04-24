@@ -24,20 +24,20 @@ void main() {
     expect(client.registeredViewIds(), <int>[0, 1, 2]);
 
     await controller.move(first.localId, const Offset(24, 16));
-    expect(client.removedViewIds, contains(1));
-    expect(controller.views.first.viewId, 3);
-    expect(client.registeredViewIds(), <int>[0, 2, 3]);
+    expect(client.updatedViewIds, contains(1));
+    expect(controller.views.first.viewId, 1);
+    expect(client.registeredViewIds(), <int>[0, 1, 2]);
 
     await controller.resize(second.localId, 1.2);
-    expect(client.removedViewIds, contains(2));
-    expect(controller.views.last.viewId, 4);
-    expect(client.registeredViewIds(), <int>[0, 3, 4]);
+    expect(client.updatedViewIds, contains(2));
+    expect(controller.views.last.viewId, 2);
+    expect(client.registeredViewIds(), <int>[0, 1, 2]);
 
     await controller.remove(first.localId);
     expect(controller.views.map((SampleViewSpec view) => view.viewId), <int>[
-      4,
+      2,
     ]);
-    expect(client.registeredViewIds(), <int>[0, 4]);
+    expect(client.registeredViewIds(), <int>[0, 2]);
   });
 
   test('serializes repeated move requests without leaking views', () async {
@@ -57,9 +57,10 @@ void main() {
 
     expect(controller.views, hasLength(1));
     expect(controller.views.single.geometry.left, 48 + 32 * 5);
-    expect(controller.views.single.viewId, 6);
-    expect(client.removedViewIds, <int>[1, 2, 3, 4, 5]);
-    expect(client.registeredViewIds(), <int>[0, 6]);
+    expect(controller.views.single.viewId, 1);
+    expect(client.updatedViewIds, <int>[1, 1, 1, 1, 1]);
+    expect(client.removedViewIds, isEmpty);
+    expect(client.registeredViewIds(), <int>[0, 1]);
   });
 
   test('stress scenario leaves no secondary views registered', () async {

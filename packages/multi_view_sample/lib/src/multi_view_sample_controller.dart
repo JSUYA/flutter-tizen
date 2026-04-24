@@ -148,6 +148,7 @@ class MultiViewRequest {
 
 abstract class MultiViewClient {
   Future<int> addView(MultiViewRequest request);
+  Future<bool> updateView(int viewId, MultiViewRequest request);
   Future<bool> removeView(int viewId);
   List<int> registeredViewIds();
 }
@@ -170,6 +171,19 @@ class TizenSampleMultiViewClient implements MultiViewClient {
       userPixelRatio: request.userPixelRatio,
     );
     return handle.viewId;
+  }
+
+  @override
+  Future<bool> updateView(int viewId, MultiViewRequest request) async {
+    final Rect geometry =
+        stageMapper?.toNativeGeometry(request.geometry) ?? request.geometry;
+    return TizenMultiView.updateView(
+      viewId: viewId,
+      x: geometry.left.round(),
+      y: geometry.top.round(),
+      width: geometry.width.round(),
+      height: geometry.height.round(),
+    );
   }
 
   @override
@@ -397,7 +411,7 @@ class MultiViewSampleController extends ChangeNotifier {
 
   Future<void> _move(String localId, Offset delta) async {
     final SampleViewSpec view = _require(localId);
-    await _recreate(
+    await _updateGeometry(
       view,
       view.copyWith(geometry: _clampRect(view.geometry.shift(delta))),
       'move dx=${delta.dx.round()} dy=${delta.dy.round()}',
@@ -411,7 +425,7 @@ class MultiViewSampleController extends ChangeNotifier {
       width: (view.geometry.width * scale).clamp(96.0, stageSize.width),
       height: (view.geometry.height * scale).clamp(72.0, stageSize.height),
     );
-    await _recreate(
+    await _updateGeometry(
       view,
       view.copyWith(geometry: _clampRect(geometry)),
       'resize scale=${scale.toStringAsFixed(2)}',
@@ -584,35 +598,37 @@ class MultiViewSampleController extends ChangeNotifier {
     return Rect.fromLTWH(left, top, width, height);
   }
 
-  Future<void> _recreate(
+  Future<void> _updateGeometry(
     SampleViewSpec current,
     SampleViewSpec next,
     String action,
   ) async {
-    _replace(current.copyWith(busy: true, clearViewId: true));
+    _replace(current.copyWith(busy: true));
     notifyListeners();
-    await _waitForViewCollectionFrame();
-    final int? oldViewId = current.viewId;
-    if (oldViewId != null) {
-      final bool removed = await client.removeView(oldViewId);
-      if (!removed) {
-        _replace(current.copyWith(busy: false));
-        _record('$action local=${current.localId} viewId=$oldViewId failed');
-        notifyListeners();
-        return;
-      }
+    final int? viewId = current.viewId;
+    if (viewId == null) {
+      _replace(current.copyWith(busy: false));
+      _record('$action local=${current.localId} skipped missing-view');
+      notifyListeners();
+      return;
     }
-    final int newViewId = await client.addView(next.toRequest());
+
+    final bool updated = await client.updateView(viewId, next.toRequest());
+    if (!updated) {
+      _replace(current.copyWith(busy: false));
+      _record('$action local=${current.localId} viewId=$viewId failed');
+      notifyListeners();
+      return;
+    }
+
     final SampleViewSpec ready = next.copyWith(
-      viewId: newViewId,
-      generation: current.generation + 1,
+      viewId: viewId,
+      generation: current.generation,
       busy: false,
     );
     _replace(ready);
     _selectedLocalId = ready.localId;
-    _record(
-      '$action local=${ready.localId} oldViewId=$oldViewId newViewId=$newViewId',
-    );
+    _record('$action local=${ready.localId} viewId=$viewId');
     notifyListeners();
   }
 
