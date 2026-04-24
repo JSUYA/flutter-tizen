@@ -1,7 +1,25 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:multi_view_sample/src/multi_view_sample_controller.dart';
+import 'package:video_player/video_player.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+bool get _isTizen => Platform.operatingSystem == 'tizen';
+
+const String _videoUrl =
+    'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4';
+const String _webContentUrl = 'https://flutter.dev';
+const String _lottieUrl =
+    'https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/Mobilo/A.json';
+const String _imageUrl =
+    'https://flutter.github.io/assets-for-api-docs/assets/widgets/owl-2.jpg';
+
+double _fallbackProgress(SampleViewSpec spec) {
+  return ((spec.generation * 37 + (spec.viewId ?? 0) * 17) % 100) / 100;
+}
 
 class SecondaryViewContent extends StatelessWidget {
   const SecondaryViewContent({super.key, required this.spec});
@@ -40,7 +58,17 @@ class SecondaryViewContent extends StatelessWidget {
       case SampleViewKind.chart:
         return _ChartView(spec: spec, progress: progress);
       case SampleViewKind.video:
-        return _VideoView(spec: spec, progress: progress);
+        return _VideoView(spec: spec);
+      case SampleViewKind.web:
+        return _WebViewSurface(spec: spec);
+      case SampleViewKind.lottie:
+        return _LottieSurface(spec: spec);
+      case SampleViewKind.controls:
+        return _ControlsView(spec: spec);
+      case SampleViewKind.semantic:
+        return _SemanticView(spec: spec);
+      case SampleViewKind.image:
+        return _ImageSurface(spec: spec);
       case SampleViewKind.inspector:
         return _InspectorView(spec: spec, progress: progress);
       case SampleViewKind.banner:
@@ -357,18 +385,119 @@ class _ChartPainter extends CustomPainter {
       oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
-class _VideoView extends StatelessWidget {
-  const _VideoView({required this.spec, required this.progress});
+class _VideoView extends StatefulWidget {
+  const _VideoView({required this.spec});
 
   final SampleViewSpec spec;
-  final double progress;
+
+  @override
+  State<_VideoView> createState() => _VideoViewState();
+}
+
+class _VideoViewState extends State<_VideoView> {
+  VideoPlayerController? _controller;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isTizen) {
+      _initialize();
+    }
+  }
+
+  Future<void> _initialize() async {
+    final VideoPlayerController controller = VideoPlayerController.networkUrl(
+      Uri.parse(_videoUrl),
+    );
+    _controller = controller;
+    try {
+      await controller.initialize().timeout(const Duration(seconds: 12));
+      await controller.setLooping(true);
+      await controller.setVolume(0);
+      await controller.play();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (error) {
+      await controller.dispose();
+      if (mounted) {
+        setState(() {
+          _controller = null;
+          _error = error.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final VideoPlayerController? controller = _controller;
+    if (!_isTizen || _error != null || controller == null) {
+      return _VideoFallback(spec: widget.spec, error: _error);
+    }
+    if (!controller.value.isInitialized) {
+      return const Center(
+        child: SizedBox.square(
+          dimension: 30,
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+    return Stack(
+      children: <Widget>[
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: controller.value.size.width,
+                height: controller.value.size.height,
+                child: VideoPlayer(controller),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 8,
+          right: 8,
+          bottom: 8,
+          child: VideoProgressIndicator(
+            controller,
+            allowScrubbing: true,
+            colors: const VideoProgressColors(
+              playedColor: Colors.white,
+              bufferedColor: Color(0x99ffffff),
+              backgroundColor: Color(0x33ffffff),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoFallback extends StatelessWidget {
+  const _VideoFallback({required this.spec, required this.error});
+
+  final SampleViewSpec spec;
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: <Widget>[
         Positioned.fill(
-          child: CustomPaint(painter: _VideoBarsPainter(progress: progress)),
+          child: CustomPaint(
+            painter: _VideoBarsPainter(progress: _fallbackProgress(spec)),
+          ),
         ),
         Center(
           child: DecoratedBox(
@@ -383,12 +512,31 @@ class _VideoView extends StatelessWidget {
             ),
           ),
         ),
-        const Positioned(
+        Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          child: LinearProgressIndicator(value: 0.68, minHeight: 5),
+          child: LinearProgressIndicator(
+            value: 0.68,
+            minHeight: 5,
+            color: Colors.white,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+          ),
         ),
+        if (error != null)
+          Positioned(
+            left: 6,
+            right: 6,
+            bottom: 10,
+            child: Text(
+              'video fallback',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 11,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -417,6 +565,454 @@ class _VideoBarsPainter extends CustomPainter {
   @override
   bool shouldRepaint(_VideoBarsPainter oldDelegate) =>
       oldDelegate.progress != progress;
+}
+
+class _WebViewSurface extends StatefulWidget {
+  const _WebViewSurface({required this.spec});
+
+  final SampleViewSpec spec;
+
+  @override
+  State<_WebViewSurface> createState() => _WebViewSurfaceState();
+}
+
+class _WebViewSurfaceState extends State<_WebViewSurface> {
+  WebViewController? _controller;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isTizen) {
+      _controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onPageFinished: (_) {
+              if (_error != null && mounted) {
+                setState(() {
+                  _error = null;
+                });
+              }
+            },
+            onWebResourceError: (WebResourceError error) {
+              if (mounted) {
+                setState(() {
+                  _error = error.description;
+                });
+              }
+            },
+          ),
+        )
+        ..loadRequest(Uri.parse(_webContentUrl));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final WebViewController? controller = _controller;
+    if (!_isTizen || _error != null || controller == null) {
+      return _WebFallback(spec: widget.spec, error: _error);
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: WebViewWidget(controller: controller),
+    );
+  }
+}
+
+class _WebFallback extends StatelessWidget {
+  const _WebFallback({required this.spec, required this.error});
+
+  final SampleViewSpec spec;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: DefaultTextStyle(
+          style: const TextStyle(color: Color(0xff102030), fontSize: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'WebView network page',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+              const SizedBox(height: 6),
+              Text('view ${spec.viewId ?? '-'} loads $_webContentUrl'),
+              const Spacer(),
+              LinearProgressIndicator(
+                value: 0.72,
+                color: spec.kind.color,
+                backgroundColor: spec.kind.color.withValues(alpha: 0.16),
+              ),
+              if (error != null)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text('using fallback preview'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NetworkFallback extends StatelessWidget {
+  const _NetworkFallback({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        border: Border.all(color: color.withValues(alpha: 0.58)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, color: Colors.white, size: 32),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    detail,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.76),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LottieSurface extends StatelessWidget {
+  const _LottieSurface({required this.spec});
+
+  final SampleViewSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Lottie animation in secondary view ${spec.viewId ?? '-'}',
+      child: Center(
+        child: Lottie.network(
+          _lottieUrl,
+          repeat: true,
+          animate: true,
+          fit: BoxFit.contain,
+          errorBuilder: (BuildContext context, Object error, StackTrace? _) {
+            return _NetworkFallback(
+              icon: Icons.animation_outlined,
+              title: 'Lottie.network',
+              detail: _lottieUrl,
+              color: spec.kind.color,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ControlsView extends StatefulWidget {
+  const _ControlsView({required this.spec});
+
+  final SampleViewSpec spec;
+
+  @override
+  State<_ControlsView> createState() => _ControlsViewState();
+}
+
+class _ControlsViewState extends State<_ControlsView> {
+  int _segment = 0;
+  bool _enabled = true;
+  double _level = 0.62;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool compact =
+            constraints.maxHeight < 145 || constraints.maxWidth < 250;
+        return DefaultTextStyle(
+          style: const TextStyle(color: Colors.white),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              SegmentedButton<int>(
+                segments: const <ButtonSegment<int>>[
+                  ButtonSegment<int>(value: 0, label: Text('A')),
+                  ButtonSegment<int>(value: 1, label: Text('B')),
+                  ButtonSegment<int>(value: 2, label: Text('C')),
+                ],
+                selected: <int>{_segment},
+                onSelectionChanged: (Set<int> value) {
+                  setState(() {
+                    _segment = value.first;
+                  });
+                },
+              ),
+              if (!compact) const SizedBox(height: 8),
+              SizedBox(
+                height: compact ? 34 : 40,
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'Interactive option',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: compact ? 12 : 14),
+                      ),
+                    ),
+                    Switch(
+                      value: _enabled,
+                      onChanged: (bool value) {
+                        setState(() {
+                          _enabled = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: compact ? 30 : 36,
+                child: Slider(
+                  value: _level,
+                  onChanged: (double value) {
+                    setState(() {
+                      _level = value;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SemanticView extends StatelessWidget {
+  const _SemanticView({required this.spec});
+
+  final SampleViewSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool compact =
+            constraints.maxHeight < 90 || constraints.maxWidth < 300;
+        return MergeSemantics(
+          child: Semantics(
+            container: true,
+            label: 'Accessible status panel for view ${spec.viewId ?? '-'}',
+            liveRegion: true,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(compact ? 6 : 10),
+                child: Row(
+                  children: <Widget>[
+                    Semantics(
+                      label: 'Ready indicator',
+                      toggled: true,
+                      child: Icon(
+                        Icons.verified_user_outlined,
+                        color: Colors.white,
+                        size: compact ? 24 : 36,
+                      ),
+                    ),
+                    SizedBox(width: compact ? 8 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Text(
+                            'Semantics active',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: compact ? 13 : 18,
+                            ),
+                          ),
+                          if (!compact)
+                            Text(
+                              'button, toggle, live region',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.78),
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
+                      label: 'Acknowledge secondary view',
+                      child: compact
+                          ? IconButton.filledTonal(
+                              onPressed: () {},
+                              icon: const Icon(Icons.check, size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints.tightFor(
+                                width: 32,
+                                height: 32,
+                              ),
+                            )
+                          : FilledButton.tonal(
+                              onPressed: () {},
+                              child: const Text('OK'),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ImageSurface extends StatelessWidget {
+  const _ImageSurface({required this.spec});
+
+  final SampleViewSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.network(
+              _imageUrl,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              semanticLabel: 'Network image in secondary view',
+              loadingBuilder:
+                  (
+                    BuildContext context,
+                    Widget child,
+                    ImageChunkEvent? loadingProgress,
+                  ) {
+                    if (loadingProgress == null) {
+                      return child;
+                    }
+                    final int? expectedTotalBytes =
+                        loadingProgress.expectedTotalBytes;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        value: expectedTotalBytes == null
+                            ? null
+                            : loadingProgress.cumulativeBytesLoaded /
+                                  expectedTotalBytes,
+                      ),
+                    );
+                  },
+              errorBuilder:
+                  (BuildContext context, Object error, StackTrace? _) {
+                    return _NetworkFallback(
+                      icon: Icons.image_outlined,
+                      title: 'Image.network',
+                      detail: _imageUrl,
+                      color: spec.kind.color,
+                    );
+                  },
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text(
+                'Image.network',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                'public web asset in view ${spec.viewId ?? '-'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _InspectorView extends StatelessWidget {

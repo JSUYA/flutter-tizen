@@ -9,15 +9,19 @@ resize, and move them. Move and resize operations recreate the native secondary
 view because the current API exposes add/remove primitives rather than an
 in-place geometry update call.
 
-By default the app does not attach Flutter widget trees to secondary
-`FlutterView`s. The current Tizen embedder registers secondary views with the
-framework, but secondary view contents require a compositor that presents layers
-by view id. Rendering experimental secondary widgets can be enabled explicitly
-for compositor work:
+By default the app attaches real Flutter widget trees to secondary
+`FlutterView`s. The content set covers dashboard and chart widgets, network
+video through `video_player_tizen`, a WebView through
+`webview_flutter_tizen`, network Lottie animation, interactive Material
+controls, semantics-covered controls, a network image, transparent overlays, and
+small high-DPI panels.
+
+Secondary widget rendering can be disabled when isolating native view lifecycle
+behavior:
 
 ```sh
 flutter-tizen -d emulator-26111 run --debug \
-  --dart-define=MULTI_VIEW_SAMPLE_RENDER_SECONDARY_WIDGETS=true
+  --dart-define=MULTI_VIEW_SAMPLE_RENDER_SECONDARY_WIDGETS=false
 ```
 
 ## Run

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -6,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:multi_view_sample/src/multi_view_sample_controller.dart';
 import 'package:multi_view_sample/src/secondary_view_content.dart';
+import 'package:video_player_tizen/video_player_tizen.dart';
+import 'package:webview_flutter_tizen/webview_flutter_tizen.dart';
 
 const bool _autoRun = bool.fromEnvironment(
   'MULTI_VIEW_SAMPLE_AUTORUN',
@@ -13,11 +16,15 @@ const bool _autoRun = bool.fromEnvironment(
 );
 const bool _renderSecondaryWidgets = bool.fromEnvironment(
   'MULTI_VIEW_SAMPLE_RENDER_SECONDARY_WIDGETS',
-  defaultValue: false,
+  defaultValue: true,
 );
 
 void runMultiViewSample() {
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.operatingSystem == 'tizen') {
+    VideoPlayerTizen.register();
+    TizenWebViewPlatform.register();
+  }
   if (_renderSecondaryWidgets) {
     runWidget(const MultiViewSampleRoot(autoRun: _autoRun));
     return;
@@ -93,11 +100,25 @@ class _MultiViewSampleRootState extends State<MultiViewSampleRoot> {
                     'secondary-${spec.localId}-$viewId-${spec.generation}',
                   ),
                   view: flutterView,
-                  child: SecondaryViewContent(spec: spec),
+                  child: _SecondaryViewHost(spec: spec),
                 ),
         ];
         return ViewCollection(views: views);
       },
+    );
+  }
+}
+
+class _SecondaryViewHost extends StatelessWidget {
+  const _SecondaryViewHost({required this.spec});
+
+  final SampleViewSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SecondaryViewContent(spec: spec),
     );
   }
 }

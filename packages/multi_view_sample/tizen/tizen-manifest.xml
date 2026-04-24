@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest package="com.fluttertizen.samples.multi_view_sample" version="1.0.0" api-version="8.0" xmlns="http://tizen.org/ns/packages">
     <profile name="tv"/>
+    <privileges>
+        <privilege>http://tizen.org/privilege/internet</privilege>
+    </privileges>
     <ui-application appid="com.fluttertizen.samples.multi_view_sample" exec="Runner.dll" type="dotnet" multiple="false" nodisplay="false" taskmanage="true">
         <label>multi_view_sample</label>
         <icon>ic_launcher.png</icon>

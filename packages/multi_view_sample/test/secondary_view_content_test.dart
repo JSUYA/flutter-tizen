@@ -20,16 +20,18 @@ void main() {
       );
 
       await tester.pumpWidget(
-        SizedBox(
-          width: 320,
-          height: 220,
-          child: SecondaryViewContent(spec: spec),
+        MaterialApp(
+          home: SizedBox(
+            width: 320,
+            height: 220,
+            child: SecondaryViewContent(spec: spec),
+          ),
         ),
       );
 
       expect(find.text(kind.label), findsOneWidget);
       expect(find.text('#7'), findsOneWidget);
-      expect(tester.binding.transientCallbackCount, 0);
+      expect(tester.takeException(), isNull);
     });
   }
 }

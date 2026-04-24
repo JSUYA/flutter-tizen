@@ -11,11 +11,20 @@ dependencies:
     sdk: flutter
   flutter_tizen:
     path: ../flutter_tizen
+  lottie: ^3.3.3
+  video_player: ^2.11.1
+  video_player_tizen: ^2.5.11
+  webview_flutter: ^4.13.1
+  webview_flutter_tizen: ^0.9.7
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+dependency_overrides:
+  flutter_tizen:
+    path: ../flutter_tizen
 
 flutter:
   uses-material-design: true

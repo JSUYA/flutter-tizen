@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_tizen/flutter_tizen.dart';
 
 const Size sampleStageSize = Size(1280, 720);
@@ -10,6 +11,11 @@ enum SampleViewKind {
   dashboard,
   chart,
   video,
+  web,
+  lottie,
+  controls,
+  semantic,
+  image,
   inspector,
   banner,
   transparent,
@@ -25,6 +31,16 @@ extension SampleViewKindInfo on SampleViewKind {
         return 'Chart';
       case SampleViewKind.video:
         return 'Video';
+      case SampleViewKind.web:
+        return 'WebView';
+      case SampleViewKind.lottie:
+        return 'Lottie';
+      case SampleViewKind.controls:
+        return 'Controls';
+      case SampleViewKind.semantic:
+        return 'Semantic';
+      case SampleViewKind.image:
+        return 'Image';
       case SampleViewKind.inspector:
         return 'Inspector';
       case SampleViewKind.banner:
@@ -44,6 +60,16 @@ extension SampleViewKindInfo on SampleViewKind {
         return Icons.insert_chart_outlined;
       case SampleViewKind.video:
         return Icons.smart_display_outlined;
+      case SampleViewKind.web:
+        return Icons.public_outlined;
+      case SampleViewKind.lottie:
+        return Icons.animation_outlined;
+      case SampleViewKind.controls:
+        return Icons.tune_outlined;
+      case SampleViewKind.semantic:
+        return Icons.accessibility_new_outlined;
+      case SampleViewKind.image:
+        return Icons.image_outlined;
       case SampleViewKind.inspector:
         return Icons.manage_search_outlined;
       case SampleViewKind.banner:
@@ -63,6 +89,16 @@ extension SampleViewKindInfo on SampleViewKind {
         return const Color(0xff27ae60);
       case SampleViewKind.video:
         return const Color(0xffeb5757);
+      case SampleViewKind.web:
+        return const Color(0xff00a6a6);
+      case SampleViewKind.lottie:
+        return const Color(0xff7f52ff);
+      case SampleViewKind.controls:
+        return const Color(0xff3d5afe);
+      case SampleViewKind.semantic:
+        return const Color(0xff009688);
+      case SampleViewKind.image:
+        return const Color(0xff8d6e63);
       case SampleViewKind.inspector:
         return const Color(0xff9b51e0);
       case SampleViewKind.banner:
@@ -84,6 +120,11 @@ extension SampleViewKindInfo on SampleViewKind {
         return 2.0;
       case SampleViewKind.dashboard:
       case SampleViewKind.chart:
+      case SampleViewKind.web:
+      case SampleViewKind.lottie:
+      case SampleViewKind.controls:
+      case SampleViewKind.semantic:
+      case SampleViewKind.image:
       case SampleViewKind.inspector:
       case SampleViewKind.banner:
       case SampleViewKind.transparent:
@@ -265,6 +306,7 @@ class MultiViewSampleController extends ChangeNotifier {
     final SampleViewSpec view = _require(localId);
     _replace(view.copyWith(busy: true, clearViewId: true));
     notifyListeners();
+    await _waitForViewCollectionFrame();
     final int? viewId = view.viewId;
     final bool removed = viewId == null || await client.removeView(viewId);
     if (removed) {
@@ -408,6 +450,16 @@ class MultiViewSampleController extends ChangeNotifier {
         return const Rect.fromLTWH(448, 76, 310, 210);
       case SampleViewKind.video:
         return const Rect.fromLTWH(792, 48, 390, 246);
+      case SampleViewKind.web:
+        return const Rect.fromLTWH(40, 292, 392, 230);
+      case SampleViewKind.lottie:
+        return const Rect.fromLTWH(462, 304, 250, 250);
+      case SampleViewKind.controls:
+        return const Rect.fromLTWH(744, 314, 320, 238);
+      case SampleViewKind.semantic:
+        return const Rect.fromLTWH(92, 548, 360, 148);
+      case SampleViewKind.image:
+        return const Rect.fromLTWH(480, 548, 360, 148);
       case SampleViewKind.inspector:
         return const Rect.fromLTWH(76, 330, 300, 250);
       case SampleViewKind.banner:
@@ -440,6 +492,7 @@ class MultiViewSampleController extends ChangeNotifier {
   ) async {
     _replace(current.copyWith(busy: true, clearViewId: true));
     notifyListeners();
+    await _waitForViewCollectionFrame();
     final int? oldViewId = current.viewId;
     if (oldViewId != null) {
       await client.removeView(oldViewId);
@@ -456,6 +509,22 @@ class MultiViewSampleController extends ChangeNotifier {
       '$action local=${ready.localId} oldViewId=$oldViewId newViewId=$newViewId',
     );
     notifyListeners();
+  }
+
+  Future<void> _waitForViewCollectionFrame() async {
+    final WidgetsBinding binding;
+    try {
+      binding = WidgetsBinding.instance;
+    } catch (_) {
+      await Future<void>.delayed(Duration.zero);
+      return;
+    }
+    if (binding.schedulerPhase == SchedulerPhase.idle) {
+      await binding.endOfFrame;
+    } else {
+      await Future<void>.delayed(Duration.zero);
+      await binding.endOfFrame;
+    }
   }
 
   SampleViewSpec _require(String localId) {
