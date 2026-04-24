@@ -263,7 +263,7 @@ class MultiViewSampleController extends ChangeNotifier {
 
   Future<void> remove(String localId) async {
     final SampleViewSpec view = _require(localId);
-    _replace(view.copyWith(busy: true));
+    _replace(view.copyWith(busy: true, clearViewId: true));
     notifyListeners();
     final int? viewId = view.viewId;
     final bool removed = viewId == null || await client.removeView(viewId);
@@ -438,7 +438,7 @@ class MultiViewSampleController extends ChangeNotifier {
     SampleViewSpec next,
     String action,
   ) async {
-    _replace(current.copyWith(busy: true));
+    _replace(current.copyWith(busy: true, clearViewId: true));
     notifyListeners();
     final int? oldViewId = current.viewId;
     if (oldViewId != null) {

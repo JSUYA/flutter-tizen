@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:multi_view_sample/src/multi_view_sample_controller.dart';
+import 'package:multi_view_sample/src/secondary_view_content.dart';
 
 const bool _autoRun = bool.fromEnvironment(
   'MULTI_VIEW_SAMPLE_AUTORUN',
@@ -11,7 +13,85 @@ const bool _autoRun = bool.fromEnvironment(
 );
 
 void runMultiViewSample() {
-  runApp(const MultiViewSampleApp(autoRun: _autoRun));
+  WidgetsFlutterBinding.ensureInitialized();
+  runWidget(const MultiViewSampleRoot(autoRun: _autoRun));
+}
+
+class MultiViewSampleRoot extends StatefulWidget {
+  const MultiViewSampleRoot({super.key, this.autoRun = false});
+
+  final bool autoRun;
+
+  @override
+  State<MultiViewSampleRoot> createState() => _MultiViewSampleRootState();
+}
+
+class _MultiViewSampleRootState extends State<MultiViewSampleRoot> {
+  late final MultiViewSampleController _controller = MultiViewSampleController(
+    client: const TizenSampleMultiViewClient(),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoRun) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_runAutomatedScenario());
+      });
+    }
+  }
+
+  Future<void> _runAutomatedScenario() async {
+    try {
+      debugPrint('MULTIVIEW_SAMPLE_AUTORUN start');
+      await _controller.runStressScenario(cycles: 10);
+      debugPrint(
+        'MULTIVIEW_SAMPLE_AUTORUN complete '
+        'registered=${_controller.registeredViewIds()}',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await SystemNavigator.pop();
+    } catch (error, stackTrace) {
+      debugPrint('MULTIVIEW_SAMPLE_AUTORUN failure=$error');
+      debugPrint('$stackTrace');
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (BuildContext context, Widget? child) {
+        final ui.FlutterView? implicitView =
+            WidgetsBinding.instance.platformDispatcher.implicitView;
+        final List<Widget> views = <Widget>[
+          if (implicitView != null)
+            View(
+              view: implicitView,
+              child: MultiViewSampleApp(controller: _controller),
+            ),
+          for (final SampleViewSpec spec in _controller.views)
+            if (spec.viewId case final int viewId)
+              if (WidgetsBinding.instance.platformDispatcher.view(id: viewId)
+                  case final ui.FlutterView flutterView)
+                View(
+                  key: ValueKey<String>(
+                    'secondary-${spec.localId}-$viewId-${spec.generation}',
+                  ),
+                  view: flutterView,
+                  child: SecondaryViewContent(spec: spec),
+                ),
+        ];
+        return ViewCollection(views: views);
+      },
+    );
+  }
 }
 
 class MultiViewSampleApp extends StatefulWidget {
