@@ -406,7 +406,9 @@ class _ControlPanel extends StatelessWidget {
               for (final SampleViewKind kind in SampleViewKind.values)
                 _PresetButton(
                   kind: kind,
-                  onPressed: () => unawaited(controller.addPreset(kind)),
+                  onPressed: controller.busy || controller.runningScript
+                      ? null
+                      : () => unawaited(controller.addPreset(kind)),
                 ),
             ],
           ),
@@ -438,7 +440,7 @@ class _ControlPanel extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: controller.runningScript
+                  onPressed: controller.runningScript || controller.busy
                       ? null
                       : () => unawaited(controller.runStressScenario()),
                   icon: const Icon(Icons.play_arrow),
@@ -448,13 +450,17 @@ class _ControlPanel extends StatelessWidget {
               const SizedBox(width: 8),
               IconButton.filledTonal(
                 tooltip: 'Reset',
-                onPressed: () => unawaited(controller.resetShowcase()),
+                onPressed: controller.busy
+                    ? null
+                    : () => unawaited(controller.resetShowcase()),
                 icon: const Icon(Icons.dashboard_customize_outlined),
               ),
               const SizedBox(width: 8),
               IconButton.filledTonal(
                 tooltip: 'Clear',
-                onPressed: () => unawaited(controller.clearAll()),
+                onPressed: controller.busy
+                    ? null
+                    : () => unawaited(controller.clearAll()),
                 icon: const Icon(Icons.delete_sweep_outlined),
               ),
             ],
@@ -477,7 +483,7 @@ class _PresetButton extends StatelessWidget {
   const _PresetButton({required this.kind, required this.onPressed});
 
   final SampleViewKind kind;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -500,6 +506,7 @@ class _SelectedControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool enabled = !controller.busy && !controller.runningScript;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -518,52 +525,66 @@ class _SelectedControls extends StatelessWidget {
             children: <Widget>[
               IconButton.filledTonal(
                 tooltip: 'Move up',
-                onPressed: () => unawaited(
-                  controller.move(view.localId, const Offset(0, -32)),
-                ),
+                onPressed: enabled
+                    ? () => unawaited(
+                        controller.move(view.localId, const Offset(0, -32)),
+                      )
+                    : null,
                 icon: const Icon(Icons.keyboard_arrow_up),
               ),
               IconButton.filledTonal(
                 tooltip: 'Move left',
-                onPressed: () => unawaited(
-                  controller.move(view.localId, const Offset(-32, 0)),
-                ),
+                onPressed: enabled
+                    ? () => unawaited(
+                        controller.move(view.localId, const Offset(-32, 0)),
+                      )
+                    : null,
                 icon: const Icon(Icons.keyboard_arrow_left),
               ),
               IconButton.filledTonal(
                 tooltip: 'Move right',
-                onPressed: () => unawaited(
-                  controller.move(view.localId, const Offset(32, 0)),
-                ),
+                onPressed: enabled
+                    ? () => unawaited(
+                        controller.move(view.localId, const Offset(32, 0)),
+                      )
+                    : null,
                 icon: const Icon(Icons.keyboard_arrow_right),
               ),
               IconButton.filledTonal(
                 tooltip: 'Move down',
-                onPressed: () => unawaited(
-                  controller.move(view.localId, const Offset(0, 32)),
-                ),
+                onPressed: enabled
+                    ? () => unawaited(
+                        controller.move(view.localId, const Offset(0, 32)),
+                      )
+                    : null,
                 icon: const Icon(Icons.keyboard_arrow_down),
               ),
               IconButton.filledTonal(
                 tooltip: 'Grow',
-                onPressed: () =>
-                    unawaited(controller.resize(view.localId, 1.12)),
+                onPressed: enabled
+                    ? () => unawaited(controller.resize(view.localId, 1.12))
+                    : null,
                 icon: const Icon(Icons.zoom_out_map),
               ),
               IconButton.filledTonal(
                 tooltip: 'Shrink',
-                onPressed: () =>
-                    unawaited(controller.resize(view.localId, 0.88)),
+                onPressed: enabled
+                    ? () => unawaited(controller.resize(view.localId, 0.88))
+                    : null,
                 icon: const Icon(Icons.zoom_in_map),
               ),
               IconButton.filledTonal(
                 tooltip: 'Duplicate',
-                onPressed: () => unawaited(controller.duplicate(view.localId)),
+                onPressed: enabled
+                    ? () => unawaited(controller.duplicate(view.localId))
+                    : null,
                 icon: const Icon(Icons.control_point_duplicate_outlined),
               ),
               IconButton.filled(
                 tooltip: 'Remove',
-                onPressed: () => unawaited(controller.remove(view.localId)),
+                onPressed: enabled
+                    ? () => unawaited(controller.remove(view.localId))
+                    : null,
                 icon: const Icon(Icons.close),
               ),
             ],

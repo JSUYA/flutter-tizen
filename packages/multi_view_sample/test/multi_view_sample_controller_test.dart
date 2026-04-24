@@ -40,6 +40,28 @@ void main() {
     expect(client.registeredViewIds(), <int>[0, 4]);
   });
 
+  test('serializes repeated move requests without leaking views', () async {
+    final FakeMultiViewClient client = FakeMultiViewClient();
+    final MultiViewSampleController controller = MultiViewSampleController(
+      client: client,
+    );
+
+    final SampleViewSpec view = await controller.addPreset(
+      SampleViewKind.dashboard,
+    );
+
+    await Future.wait(<Future<void>>[
+      for (int i = 0; i < 5; i += 1)
+        controller.move(view.localId, const Offset(32, 0)),
+    ]);
+
+    expect(controller.views, hasLength(1));
+    expect(controller.views.single.geometry.left, 48 + 32 * 5);
+    expect(controller.views.single.viewId, 6);
+    expect(client.removedViewIds, <int>[1, 2, 3, 4, 5]);
+    expect(client.registeredViewIds(), <int>[0, 6]);
+  });
+
   test('stress scenario leaves no secondary views registered', () async {
     final FakeMultiViewClient client = FakeMultiViewClient();
     final MultiViewSampleController controller = MultiViewSampleController(

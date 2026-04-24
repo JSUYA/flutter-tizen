@@ -280,10 +280,13 @@ class MultiViewSampleController extends ChangeNotifier {
   int _nextLocalId = 1;
   int _eventSerial = 0;
   String? _selectedLocalId;
+  Future<void> _mutationQueue = Future<void>.value();
+  int _pendingMutations = 0;
   bool _runningScript = false;
 
   List<SampleViewSpec> get views => List<SampleViewSpec>.unmodifiable(_views);
   List<String> get events => List<String>.unmodifiable(_events);
+  bool get busy => _pendingMutations > 0;
   bool get runningScript => _runningScript;
   String? get selectedLocalId => _selectedLocalId;
 
@@ -298,7 +301,44 @@ class MultiViewSampleController extends ChangeNotifier {
 
   List<int> registeredViewIds() => client.registeredViewIds();
 
-  Future<SampleViewSpec> addPreset(
+  Future<SampleViewSpec> addPreset(SampleViewKind kind, {Rect? geometry}) {
+    return _enqueueMutation<SampleViewSpec>(
+      () => _addPreset(kind, geometry: geometry),
+    );
+  }
+
+  Future<void> remove(String localId) {
+    return _enqueueMutation<void>(() => _remove(localId));
+  }
+
+  Future<void> move(String localId, Offset delta) {
+    return _enqueueMutation<void>(() => _move(localId, delta));
+  }
+
+  Future<void> resize(String localId, double scale) {
+    return _enqueueMutation<void>(() => _resize(localId, scale));
+  }
+
+  Future<SampleViewSpec> duplicate(String localId) {
+    return _enqueueMutation<SampleViewSpec>(() => _duplicate(localId));
+  }
+
+  Future<void> clearAll() {
+    return _enqueueMutation<void>(_clearAll);
+  }
+
+  Future<void> resetShowcase() {
+    return _enqueueMutation<void>(_resetShowcase);
+  }
+
+  Future<void> runStressScenario({int cycles = 6}) {
+    if (_runningScript) {
+      return Future<void>.value();
+    }
+    return _enqueueMutation<void>(() => _runStressScenario(cycles: cycles));
+  }
+
+  Future<SampleViewSpec> _addPreset(
     SampleViewKind kind, {
     Rect? geometry,
   }) async {
@@ -336,7 +376,7 @@ class MultiViewSampleController extends ChangeNotifier {
     }
   }
 
-  Future<void> remove(String localId) async {
+  Future<void> _remove(String localId) async {
     final SampleViewSpec view = _require(localId);
     _replace(view.copyWith(busy: true, clearViewId: true));
     notifyListeners();
@@ -355,7 +395,7 @@ class MultiViewSampleController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> move(String localId, Offset delta) async {
+  Future<void> _move(String localId, Offset delta) async {
     final SampleViewSpec view = _require(localId);
     await _recreate(
       view,
@@ -364,7 +404,7 @@ class MultiViewSampleController extends ChangeNotifier {
     );
   }
 
-  Future<void> resize(String localId, double scale) async {
+  Future<void> _resize(String localId, double scale) async {
     final SampleViewSpec view = _require(localId);
     final Rect geometry = Rect.fromCenter(
       center: view.geometry.center,
@@ -378,35 +418,35 @@ class MultiViewSampleController extends ChangeNotifier {
     );
   }
 
-  Future<SampleViewSpec> duplicate(String localId) async {
+  Future<SampleViewSpec> _duplicate(String localId) async {
     final SampleViewSpec view = _require(localId);
-    return addPreset(
+    return _addPreset(
       view.kind,
       geometry: _clampRect(view.geometry.shift(const Offset(36, 28))),
     );
   }
 
-  Future<void> clearAll() async {
+  Future<void> _clearAll() async {
     final List<String> ids = _views
         .map((SampleViewSpec view) => view.localId)
         .toList(growable: false);
     for (final String localId in ids.reversed) {
-      await remove(localId);
+      await _remove(localId);
     }
     _selectedLocalId = null;
     _record('clear-all registered=${registeredViewIds()}');
     notifyListeners();
   }
 
-  Future<void> resetShowcase() async {
-    await clearAll();
+  Future<void> _resetShowcase() async {
+    await _clearAll();
     for (final SampleViewKind kind in SampleViewKind.values) {
-      await addPreset(kind);
+      await _addPreset(kind);
     }
     _record('reset-showcase count=${_views.length}');
   }
 
-  Future<void> runStressScenario({int cycles = 6}) async {
+  Future<void> _runStressScenario({int cycles = 6}) async {
     if (_runningScript) {
       return;
     }
@@ -414,26 +454,26 @@ class MultiViewSampleController extends ChangeNotifier {
     _record('script-start registered=${registeredViewIds()}');
     notifyListeners();
     try {
-      await clearAll();
+      await _clearAll();
       for (final SampleViewKind kind in SampleViewKind.values) {
-        await addPreset(kind);
+        await _addPreset(kind);
       }
       _record('script-after-add registered=${registeredViewIds()}');
 
       if (_views.length >= 3) {
-        await move(_views[0].localId, const Offset(72, 44));
-        await resize(_views[1].localId, 1.18);
-        await duplicate(_views[2].localId);
+        await _move(_views[0].localId, const Offset(72, 44));
+        await _resize(_views[1].localId, 1.18);
+        await _duplicate(_views[2].localId);
       }
       _record('script-after-edit registered=${registeredViewIds()}');
 
       if (_views.length >= 2) {
-        await remove(_views[1].localId);
+        await _remove(_views[1].localId);
       }
       _record('script-after-partial-remove registered=${registeredViewIds()}');
 
       for (int cycle = 0; cycle < cycles; cycle += 1) {
-        final SampleViewSpec first = await addPreset(
+        final SampleViewSpec first = await _addPreset(
           cycle.isEven ? SampleViewKind.chart : SampleViewKind.transparent,
           geometry: Rect.fromLTWH(
             84 + (cycle * 28),
@@ -442,7 +482,7 @@ class MultiViewSampleController extends ChangeNotifier {
             132,
           ),
         );
-        final SampleViewSpec second = await addPreset(
+        final SampleViewSpec second = await _addPreset(
           cycle.isEven ? SampleViewKind.mini : SampleViewKind.banner,
           geometry: Rect.fromLTWH(
             760 - (cycle * 18),
@@ -452,23 +492,48 @@ class MultiViewSampleController extends ChangeNotifier {
           ),
         );
         if (cycle.isEven) {
-          await move(first.localId, const Offset(24, -18));
-          await remove(second.localId);
-          await remove(first.localId);
+          await _move(first.localId, const Offset(24, -18));
+          await _remove(second.localId);
+          await _remove(first.localId);
         } else {
-          await resize(second.localId, 0.86);
-          await remove(first.localId);
-          await remove(second.localId);
+          await _resize(second.localId, 0.86);
+          await _remove(first.localId);
+          await _remove(second.localId);
         }
         _record('script-cycle-$cycle registered=${registeredViewIds()}');
       }
 
-      await clearAll();
+      await _clearAll();
       _record('script-complete registered=${registeredViewIds()}');
     } finally {
       _runningScript = false;
       notifyListeners();
     }
+  }
+
+  Future<T> _enqueueMutation<T>(Future<T> Function() mutation) {
+    final Completer<T> completer = Completer<T>();
+    _pendingMutations += 1;
+    notifyListeners();
+
+    Future<void> runMutation() async {
+      try {
+        final T result = await mutation();
+        if (!completer.isCompleted) {
+          completer.complete(result);
+        }
+      } catch (error, stackTrace) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        }
+      } finally {
+        _pendingMutations -= 1;
+        notifyListeners();
+      }
+    }
+
+    _mutationQueue = _mutationQueue.then((_) => runMutation());
+    return completer.future;
   }
 
   void select(String? localId) {
@@ -529,7 +594,13 @@ class MultiViewSampleController extends ChangeNotifier {
     await _waitForViewCollectionFrame();
     final int? oldViewId = current.viewId;
     if (oldViewId != null) {
-      await client.removeView(oldViewId);
+      final bool removed = await client.removeView(oldViewId);
+      if (!removed) {
+        _replace(current.copyWith(busy: false));
+        _record('$action local=${current.localId} viewId=$oldViewId failed');
+        notifyListeners();
+        return;
+      }
     }
     final int newViewId = await client.addView(next.toRequest());
     final SampleViewSpec ready = next.copyWith(
