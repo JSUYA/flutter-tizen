@@ -16,6 +16,10 @@ video through `video_player_tizen`, a WebView through
 controls, semantics-covered controls, a network image, transparent overlays, and
 small high-DPI panels.
 
+The stage draws only non-interactive outlines for secondary views. The native
+secondary windows are raised above the primary app window so pointer and scroll
+events go to the content inside each `FlutterView`.
+
 Secondary widget rendering can be disabled when isolating native view lifecycle
 behavior:
 

@@ -134,9 +134,12 @@ class MultiViewSampleApp extends StatefulWidget {
 }
 
 class _MultiViewSampleAppState extends State<MultiViewSampleApp> {
+  late final MultiViewStageMapper _stageMapper = MultiViewStageMapper();
   late final MultiViewSampleController _controller =
       widget.controller ??
-      MultiViewSampleController(client: const TizenSampleMultiViewClient());
+      MultiViewSampleController(
+        client: TizenSampleMultiViewClient(stageMapper: _stageMapper),
+      );
   late final bool _ownsController = widget.controller == null;
 
   @override
@@ -152,6 +155,7 @@ class _MultiViewSampleAppState extends State<MultiViewSampleApp> {
   Future<void> _runAutomatedScenario() async {
     try {
       debugPrint('MULTIVIEW_SAMPLE_AUTORUN start');
+      await WidgetsBinding.instance.endOfFrame;
       await _controller.runStressScenario(cycles: 10);
       debugPrint(
         'MULTIVIEW_SAMPLE_AUTORUN complete '
@@ -184,15 +188,23 @@ class _MultiViewSampleAppState extends State<MultiViewSampleApp> {
         ),
         useMaterial3: true,
       ),
-      home: MultiViewSampleHome(controller: _controller),
+      home: MultiViewSampleHome(
+        controller: _controller,
+        stageMapper: _stageMapper,
+      ),
     );
   }
 }
 
 class MultiViewSampleHome extends StatelessWidget {
-  const MultiViewSampleHome({super.key, required this.controller});
+  const MultiViewSampleHome({
+    super.key,
+    required this.controller,
+    required this.stageMapper,
+  });
 
   final MultiViewSampleController controller;
+  final MultiViewStageMapper stageMapper;
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +230,7 @@ class MultiViewSampleHome extends StatelessWidget {
                 child: _StagePanel(
                   controller: controller,
                   selectedLocalId: selected?.localId,
+                  stageMapper: stageMapper,
                 ),
               ),
               SizedBox(
@@ -262,10 +275,15 @@ class _Metric extends StatelessWidget {
 }
 
 class _StagePanel extends StatelessWidget {
-  const _StagePanel({required this.controller, required this.selectedLocalId});
+  const _StagePanel({
+    required this.controller,
+    required this.selectedLocalId,
+    required this.stageMapper,
+  });
 
   final MultiViewSampleController controller;
   final String? selectedLocalId;
+  final MultiViewStageMapper stageMapper;
 
   @override
   Widget build(BuildContext context) {
@@ -280,36 +298,83 @@ class _StagePanel extends StatelessWidget {
           );
           final Size stage = sampleStageSize * scale;
           return Center(
-            child: SizedBox(
-              width: stage.width,
-              height: stage.height,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: const Color(0xffc7d0da)),
-                ),
-                child: Stack(
-                  children: <Widget>[
-                    const Positioned.fill(child: _StageGrid()),
-                    for (final SampleViewSpec view in controller.views)
-                      Positioned(
-                        left: view.geometry.left * scale,
-                        top: view.geometry.top * scale,
-                        width: view.geometry.width * scale,
-                        height: view.geometry.height * scale,
-                        child: _ViewTile(
-                          view: view,
-                          selected: view.localId == selectedLocalId,
-                          onTap: () => controller.select(view.localId),
+            child: _StageViewportReporter(
+              stageMapper: stageMapper,
+              stageScale: scale,
+              child: SizedBox(
+                width: stage.width,
+                height: stage.height,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xffc7d0da)),
+                  ),
+                  child: Stack(
+                    children: <Widget>[
+                      const Positioned.fill(child: _StageGrid()),
+                      for (final SampleViewSpec view in controller.views)
+                        Positioned(
+                          left: view.geometry.left * scale,
+                          top: view.geometry.top * scale,
+                          width: view.geometry.width * scale,
+                          height: view.geometry.height * scale,
+                          child: IgnorePointer(
+                            child: _ViewOutline(
+                              view: view,
+                              selected: view.localId == selectedLocalId,
+                            ),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class _StageViewportReporter extends StatefulWidget {
+  const _StageViewportReporter({
+    required this.stageMapper,
+    required this.stageScale,
+    required this.child,
+  });
+
+  final MultiViewStageMapper stageMapper;
+  final double stageScale;
+  final Widget child;
+
+  @override
+  State<_StageViewportReporter> createState() => _StageViewportReporterState();
+}
+
+class _StageViewportReporterState extends State<_StageViewportReporter> {
+  final GlobalKey _key = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reportViewport());
+    return KeyedSubtree(key: _key, child: widget.child);
+  }
+
+  void _reportViewport() {
+    if (!mounted) {
+      return;
+    }
+    final BuildContext? keyContext = _key.currentContext;
+    final RenderObject? renderObject = keyContext?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) {
+      return;
+    }
+    widget.stageMapper.update(
+      stageOrigin: renderObject.localToGlobal(Offset.zero),
+      stageSize: renderObject.size,
+      stageScale: widget.stageScale,
+      devicePixelRatio: View.of(context).devicePixelRatio,
     );
   }
 }
@@ -341,80 +406,75 @@ class _StageGridPainter extends CustomPainter {
   bool shouldRepaint(_StageGridPainter oldDelegate) => false;
 }
 
-class _ViewTile extends StatelessWidget {
-  const _ViewTile({
-    required this.view,
-    required this.selected,
-    required this.onTap,
-  });
+class _ViewOutline extends StatelessWidget {
+  const _ViewOutline({required this.view, required this.selected});
 
   final SampleViewSpec view;
   final bool selected;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final Color color = view.kind.color;
-    return Material(
-      color: color.withValues(alpha: view.transparent ? 0.44 : 0.88),
-      child: InkWell(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? Colors.black : color.darken(),
-              width: selected ? 3 : 1,
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                blurRadius: selected ? 18 : 8,
-                color: Colors.black.withValues(alpha: selected ? 0.24 : 0.12),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: selected ? Colors.black : color.withValues(alpha: 0.72),
+          width: selected ? 3 : 1.5,
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: math.max(0.0, constraints.maxWidth - 8),
               ),
-            ],
-          ),
-          padding: const EdgeInsets.all(10),
-          child: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              final bool compact =
-                  constraints.maxWidth < 150 || constraints.maxHeight < 90;
-              return DefaultTextStyle(
-                style: TextStyle(
-                  color: color.computeLuminance() > 0.62
-                      ? Colors.black87
-                      : Colors.white,
-                  fontWeight: FontWeight.w600,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.82),
+                  borderRadius: const BorderRadius.only(
+                    bottomRight: Radius.circular(4),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Icon(view.kind.icon, size: compact ? 16 : 22),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            view.kind.label,
-                            overflow: TextOverflow.ellipsis,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.max,
+                    children: <Widget>[
+                      Icon(
+                        view.kind.icon,
+                        size: 14,
+                        color: color.computeLuminance() > 0.62
+                            ? Colors.black87
+                            : Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${view.kind.label} ${view.viewId ?? '-'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: color.computeLuminance() > 0.62
+                                ? Colors.black87
+                                : Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ],
-                    ),
-                    if (!compact) ...<Widget>[
-                      const Spacer(),
-                      Text('viewId ${view.viewId ?? '-'}'),
-                      Text(
-                        '${view.geometry.width.round()} x '
-                        '${view.geometry.height.round()}',
                       ),
-                      Text('dpr ${view.userPixelRatio} gen ${view.generation}'),
                     ],
-                  ],
+                  ),
                 ),
-              );
-            },
-          ),
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -456,6 +516,22 @@ class _ControlPanel extends StatelessWidget {
             const Text('No view selected')
           else
             _SelectedControls(controller: controller, view: selected!),
+          if (controller.views.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                for (final SampleViewSpec view in controller.views)
+                  ChoiceChip(
+                    selected: view.localId == selected?.localId,
+                    avatar: Icon(view.kind.icon, size: 18),
+                    label: Text('${view.kind.label} ${view.viewId ?? '-'}'),
+                    onSelected: (_) => controller.select(view.localId),
+                  ),
+              ],
+            ),
+          ],
           const Divider(height: 32),
           Row(
             children: <Widget>[
@@ -594,12 +670,5 @@ class _SelectedControls extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-extension on Color {
-  Color darken() {
-    final HSLColor hsl = HSLColor.fromColor(this);
-    return hsl.withLightness((hsl.lightness - 0.18).clamp(0.0, 1.0)).toColor();
   }
 }

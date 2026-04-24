@@ -153,16 +153,21 @@ abstract class MultiViewClient {
 }
 
 class TizenSampleMultiViewClient implements MultiViewClient {
-  const TizenSampleMultiViewClient();
+  const TizenSampleMultiViewClient({this.stageMapper});
+
+  final MultiViewStageMapper? stageMapper;
 
   @override
   Future<int> addView(MultiViewRequest request) async {
+    final Rect geometry =
+        stageMapper?.toNativeGeometry(request.geometry) ?? request.geometry;
     final TizenViewHandle handle = await TizenMultiView.addView(
-      x: request.geometry.left.round(),
-      y: request.geometry.top.round(),
-      width: request.geometry.width.round(),
-      height: request.geometry.height.round(),
+      x: geometry.left.round(),
+      y: geometry.top.round(),
+      width: geometry.width.round(),
+      height: geometry.height.round(),
       transparent: request.transparent,
+      topLevel: true,
       userPixelRatio: request.userPixelRatio,
     );
     return handle.viewId;
@@ -174,6 +179,36 @@ class TizenSampleMultiViewClient implements MultiViewClient {
 
   @override
   Future<bool> removeView(int viewId) => TizenMultiView.removeView(viewId);
+}
+
+class MultiViewStageMapper {
+  Rect? _stageBounds;
+  double _stageScale = 1.0;
+  double _devicePixelRatio = 1.0;
+
+  void update({
+    required Offset stageOrigin,
+    required Size stageSize,
+    required double stageScale,
+    required double devicePixelRatio,
+  }) {
+    _stageBounds = stageOrigin & stageSize;
+    _stageScale = stageScale;
+    _devicePixelRatio = devicePixelRatio;
+  }
+
+  Rect toNativeGeometry(Rect stageGeometry) {
+    final Rect? stageBounds = _stageBounds;
+    if (stageBounds == null) {
+      return stageGeometry;
+    }
+    return Rect.fromLTWH(
+      (stageBounds.left + stageGeometry.left * _stageScale) * _devicePixelRatio,
+      (stageBounds.top + stageGeometry.top * _stageScale) * _devicePixelRatio,
+      stageGeometry.width * _stageScale * _devicePixelRatio,
+      stageGeometry.height * _stageScale * _devicePixelRatio,
+    );
+  }
 }
 
 @immutable

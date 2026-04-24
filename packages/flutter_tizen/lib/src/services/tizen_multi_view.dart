@@ -10,16 +10,6 @@ import 'package:flutter/services.dart';
 ///
 /// The [viewId] matches the identifier exposed on `FlutterView.viewId` and
 /// can be looked up through `PlatformDispatcher.view(id: ...)`.
-///
-/// IMPORTANT: Until the Tizen embedder's multi-view compositor lands,
-/// secondary views are registered with the Flutter framework (so they show
-/// up in `PlatformDispatcher.views`) but their widget trees are NOT
-/// rendered to the platform window. Calling `runWidget(View(view: ...))`
-/// against a secondary view will build the tree and dispatch frames, but
-/// the pixels never reach the secondary window's surface. Today
-/// `TizenMultiView.addView` is therefore useful for (a) exercising the
-/// framework-side multi-view code paths, and (b) routing pointer events
-/// correctly via their `view_id`, but not yet for presenting UI.
 class TizenViewHandle {
   /// Creates a handle for the given view id.
   const TizenViewHandle(this.viewId);
@@ -37,12 +27,6 @@ class TizenViewHandle {
 /// reaches `FlutterDesktopEngineAddView`/`FlutterDesktopEngineRemoveView` on
 /// the native side. The implicit view (id 0) is created automatically with
 /// the app and cannot be added or removed through this API.
-///
-/// NOTE: Until the multi-view compositor work lands in the Tizen embedder,
-/// secondary views are announced to the framework (so
-/// `PlatformDispatcher.views` sees them) but their contents are not painted.
-/// Registering the view is still useful for input routing and for exercising
-/// the Flutter framework side of multi-view code paths.
 class TizenMultiView {
   TizenMultiView._();
 
@@ -126,7 +110,8 @@ class TizenMultiView {
         'The implicit view (id 0) cannot be removed at runtime.',
       );
     }
-    final bool ok = await _channel.invokeMethod<bool>('removeView', <String, Object?>{
+    final bool ok =
+        await _channel.invokeMethod<bool>('removeView', <String, Object?>{
           'viewId': viewId,
         }) ??
         false;
