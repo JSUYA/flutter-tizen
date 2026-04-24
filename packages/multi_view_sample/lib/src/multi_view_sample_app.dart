@@ -226,13 +226,7 @@ class MultiViewSampleHome extends StatelessWidget {
           ),
           body: Row(
             children: <Widget>[
-              Expanded(
-                child: _StagePanel(
-                  controller: controller,
-                  selectedLocalId: selected?.localId,
-                  stageMapper: stageMapper,
-                ),
-              ),
+              Expanded(child: _StagePanel(stageMapper: stageMapper)),
               SizedBox(
                 width: 360,
                 child: _ControlPanel(
@@ -275,14 +269,8 @@ class _Metric extends StatelessWidget {
 }
 
 class _StagePanel extends StatelessWidget {
-  const _StagePanel({
-    required this.controller,
-    required this.selectedLocalId,
-    required this.stageMapper,
-  });
+  const _StagePanel({required this.stageMapper});
 
-  final MultiViewSampleController controller;
-  final String? selectedLocalId;
   final MultiViewStageMapper stageMapper;
 
   @override
@@ -312,19 +300,6 @@ class _StagePanel extends StatelessWidget {
                   child: Stack(
                     children: <Widget>[
                       const Positioned.fill(child: _StageGrid()),
-                      for (final SampleViewSpec view in controller.views)
-                        Positioned(
-                          left: view.geometry.left * scale,
-                          top: view.geometry.top * scale,
-                          width: view.geometry.width * scale,
-                          height: view.geometry.height * scale,
-                          child: IgnorePointer(
-                            child: _ViewOutline(
-                              view: view,
-                              selected: view.localId == selectedLocalId,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -404,80 +379,6 @@ class _StageGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StageGridPainter oldDelegate) => false;
-}
-
-class _ViewOutline extends StatelessWidget {
-  const _ViewOutline({required this.view, required this.selected});
-
-  final SampleViewSpec view;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color color = view.kind.color;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: selected ? Colors.black : color.withValues(alpha: 0.72),
-          width: selected ? 3 : 1.5,
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          return Align(
-            alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: math.max(0.0, constraints.maxWidth - 8),
-              ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.82),
-                  borderRadius: const BorderRadius.only(
-                    bottomRight: Radius.circular(4),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: <Widget>[
-                      Icon(
-                        view.kind.icon,
-                        size: 14,
-                        color: color.computeLuminance() > 0.62
-                            ? Colors.black87
-                            : Colors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '${view.kind.label} ${view.viewId ?? '-'}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: color.computeLuminance() > 0.62
-                                ? Colors.black87
-                                : Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }
 
 class _ControlPanel extends StatelessWidget {

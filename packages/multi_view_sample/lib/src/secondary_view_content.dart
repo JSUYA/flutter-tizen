@@ -175,6 +175,20 @@ class _SecondaryFrame extends StatelessWidget {
                 ],
               ),
             ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.white.withValues(
+                        alpha: compact ? 0.38 : 0.5,
+                      ),
+                      width: compact ? 1 : 2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         );
       },
@@ -411,8 +425,9 @@ class _VideoViewState extends State<_VideoView> {
       Uri.parse(_videoUrl),
     );
     _controller = controller;
+    controller.addListener(_handleVideoChanged);
     try {
-      await controller.initialize().timeout(const Duration(seconds: 12));
+      await controller.initialize().timeout(const Duration(seconds: 10));
       await controller.setLooping(true);
       await controller.setVolume(0);
       await controller.play();
@@ -420,6 +435,7 @@ class _VideoViewState extends State<_VideoView> {
         setState(() {});
       }
     } catch (error) {
+      controller.removeListener(_handleVideoChanged);
       await controller.dispose();
       if (mounted) {
         setState(() {
@@ -430,9 +446,17 @@ class _VideoViewState extends State<_VideoView> {
     }
   }
 
+  void _handleVideoChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   void dispose() {
-    _controller?.dispose();
+    final VideoPlayerController? controller = _controller;
+    controller?.removeListener(_handleVideoChanged);
+    controller?.dispose();
     super.dispose();
   }
 
@@ -462,6 +486,30 @@ class _VideoViewState extends State<_VideoView> {
                 height: controller.value.size.height,
                 child: VideoPlayer(controller),
               ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: IconButton.filledTonal(
+            tooltip: controller.value.isPlaying ? 'Pause video' : 'Play video',
+            onPressed: () async {
+              if (controller.value.isPlaying) {
+                await controller.pause();
+              } else {
+                await controller.play();
+              }
+              if (mounted) {
+                setState(() {});
+              }
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.black.withValues(alpha: 0.42),
+              foregroundColor: Colors.white,
+            ),
+            icon: Icon(
+              controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
             ),
           ),
         ),

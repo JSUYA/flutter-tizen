@@ -16,9 +16,14 @@ video through `video_player_tizen`, a WebView through
 controls, semantics-covered controls, a network image, transparent overlays, and
 small high-DPI panels.
 
-The stage draws only non-interactive outlines for secondary views. The native
-secondary windows are raised above the primary app window so pointer and scroll
-events go to the content inside each `FlutterView`.
+The primary stage is only a placement surface. Each secondary `FlutterView`
+draws its own frame and content inside the native secondary window, so pointer
+and scroll events go to the content inside that view.
+
+`video_player_tizen` does not support TV emulator playback. On that target the
+video panel falls back to a local animated surface while still exercising the
+secondary view layout and input path; real video playback should be verified on
+a supported Tizen device.
 
 Secondary widget rendering can be disabled when isolating native view lifecycle
 behavior:

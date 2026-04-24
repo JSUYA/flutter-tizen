@@ -3,7 +3,6 @@
     <profile name="tv"/>
     <privileges>
         <privilege>http://tizen.org/privilege/internet</privilege>
-        <privilege>http://tizen.org/privilege/window.priority.set</privilege>
     </privileges>
     <ui-application appid="com.fluttertizen.samples.multi_view_sample" exec="Runner.dll" type="dotnet" multiple="false" nodisplay="false" taskmanage="true">
         <label>multi_view_sample</label>

@@ -167,7 +167,6 @@ class TizenSampleMultiViewClient implements MultiViewClient {
       width: geometry.width.round(),
       height: geometry.height.round(),
       transparent: request.transparent,
-      topLevel: true,
       userPixelRatio: request.userPixelRatio,
     );
     return handle.viewId;
