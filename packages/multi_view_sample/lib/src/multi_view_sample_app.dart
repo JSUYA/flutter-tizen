@@ -42,8 +42,9 @@ class MultiViewSampleRoot extends StatefulWidget {
 }
 
 class _MultiViewSampleRootState extends State<MultiViewSampleRoot> {
+  late final MultiViewStageMapper _stageMapper = MultiViewStageMapper();
   late final MultiViewSampleController _controller = MultiViewSampleController(
-    client: const TizenSampleMultiViewClient(),
+    client: TizenSampleMultiViewClient(stageMapper: _stageMapper),
   );
 
   @override
@@ -59,6 +60,7 @@ class _MultiViewSampleRootState extends State<MultiViewSampleRoot> {
   Future<void> _runAutomatedScenario() async {
     try {
       debugPrint('MULTIVIEW_SAMPLE_AUTORUN start');
+      await WidgetsBinding.instance.endOfFrame;
       await _controller.runStressScenario(cycles: 10);
       debugPrint(
         'MULTIVIEW_SAMPLE_AUTORUN complete '
@@ -89,7 +91,10 @@ class _MultiViewSampleRootState extends State<MultiViewSampleRoot> {
           if (implicitView != null)
             View(
               view: implicitView,
-              child: MultiViewSampleApp(controller: _controller),
+              child: MultiViewSampleApp(
+                controller: _controller,
+                stageMapper: _stageMapper,
+              ),
             ),
           for (final SampleViewSpec spec in _controller.views)
             if (spec.viewId case final int viewId)
@@ -124,9 +129,15 @@ class _SecondaryViewHost extends StatelessWidget {
 }
 
 class MultiViewSampleApp extends StatefulWidget {
-  const MultiViewSampleApp({super.key, this.controller, this.autoRun = false});
+  const MultiViewSampleApp({
+    super.key,
+    this.controller,
+    this.stageMapper,
+    this.autoRun = false,
+  });
 
   final MultiViewSampleController? controller;
+  final MultiViewStageMapper? stageMapper;
   final bool autoRun;
 
   @override
@@ -134,7 +145,8 @@ class MultiViewSampleApp extends StatefulWidget {
 }
 
 class _MultiViewSampleAppState extends State<MultiViewSampleApp> {
-  late final MultiViewStageMapper _stageMapper = MultiViewStageMapper();
+  late final MultiViewStageMapper _stageMapper =
+      widget.stageMapper ?? MultiViewStageMapper();
   late final MultiViewSampleController _controller =
       widget.controller ??
       MultiViewSampleController(
