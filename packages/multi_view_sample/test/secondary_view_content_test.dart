@@ -29,6 +29,7 @@ void main() {
 
       expect(find.text(kind.label), findsOneWidget);
       expect(find.text('#7'), findsOneWidget);
+      expect(tester.binding.transientCallbackCount, 0);
     });
   }
 }

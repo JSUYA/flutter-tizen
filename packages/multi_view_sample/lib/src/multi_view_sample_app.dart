@@ -11,10 +11,18 @@ const bool _autoRun = bool.fromEnvironment(
   'MULTI_VIEW_SAMPLE_AUTORUN',
   defaultValue: false,
 );
+const bool _renderSecondaryWidgets = bool.fromEnvironment(
+  'MULTI_VIEW_SAMPLE_RENDER_SECONDARY_WIDGETS',
+  defaultValue: false,
+);
 
 void runMultiViewSample() {
   WidgetsFlutterBinding.ensureInitialized();
-  runWidget(const MultiViewSampleRoot(autoRun: _autoRun));
+  if (_renderSecondaryWidgets) {
+    runWidget(const MultiViewSampleRoot(autoRun: _autoRun));
+    return;
+  }
+  runApp(const MultiViewSampleApp(autoRun: _autoRun));
 }
 
 class MultiViewSampleRoot extends StatefulWidget {

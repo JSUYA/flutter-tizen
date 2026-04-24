@@ -3,32 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:multi_view_sample/src/multi_view_sample_controller.dart';
 
-class SecondaryViewContent extends StatefulWidget {
+class SecondaryViewContent extends StatelessWidget {
   const SecondaryViewContent({super.key, required this.spec});
 
   final SampleViewSpec spec;
 
   @override
-  State<SecondaryViewContent> createState() => _SecondaryViewContentState();
-}
-
-class _SecondaryViewContentState extends State<SecondaryViewContent>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ticker = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 8),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final SampleViewSpec spec = widget.spec;
     final Color color = spec.kind.color;
+    final double progress = _stableProgress(spec);
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Theme(
@@ -40,15 +23,10 @@ class _SecondaryViewContentState extends State<SecondaryViewContent>
           color: spec.transparent
               ? color.withValues(alpha: 0.32)
               : const Color(0xff101820),
-          child: AnimatedBuilder(
-            animation: _ticker,
-            builder: (BuildContext context, Widget? child) {
-              return _SecondaryFrame(
-                spec: spec,
-                progress: _ticker.value,
-                child: _buildBody(spec, _ticker.value),
-              );
-            },
+          child: _SecondaryFrame(
+            spec: spec,
+            progress: progress,
+            child: _buildBody(spec, progress),
           ),
         ),
       ),
@@ -72,6 +50,14 @@ class _SecondaryViewContentState extends State<SecondaryViewContent>
       case SampleViewKind.mini:
         return _MiniView(spec: spec, progress: progress);
     }
+  }
+
+  static double _stableProgress(SampleViewSpec spec) {
+    int seed = spec.generation * 37 + (spec.viewId ?? 0) * 17;
+    for (final int codeUnit in spec.localId.codeUnits) {
+      seed = (seed * 31 + codeUnit) & 0x3fffffff;
+    }
+    return (seed % 1000) / 1000;
   }
 }
 
