@@ -25,11 +25,40 @@ void main() {
   late FileSystem fileSystem;
   late FakeProcessManager processManager;
   late Logger logger;
+  late Artifacts artifacts;
+
+  Environment makeEnvironment({
+    required String targetPlatform,
+    required String buildMode,
+  }) {
+    final Directory projectDir = fileSystem.currentDirectory;
+    writePackageConfigFiles(directory: projectDir, mainLibName: 'my_app');
+    projectDir.childDirectory('tizen').childFile('tizen-manifest.xml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+<manifest package="package_id" version="1.0.0" api-version="8.0">
+  <profile name="common"/>
+  <ui-application appid="app_id" exec="Runner.dll" type="dotnet"/>
+</manifest>
+''');
+    return Environment.test(
+      projectDir,
+      defines: <String, String>{
+        kBuildMode: buildMode,
+        kTargetPlatform: targetPlatform,
+      },
+      fileSystem: fileSystem,
+      logger: logger,
+      artifacts: artifacts,
+      processManager: processManager,
+    );
+  }
 
   setUp(() {
     fileSystem = MemoryFileSystem.test();
     processManager = FakeProcessManager.any();
     logger = BufferLogger.test();
+    artifacts = Artifacts.test();
   });
 
   const cases = <String, Architecture>{
@@ -41,22 +70,10 @@ void main() {
 
   for (final MapEntry<String, Architecture> entry in cases.entries) {
     testUsingContext('Tizen hooks use Linux OS for ${entry.key}', () async {
-      final Directory projectDir = fileSystem.currentDirectory;
-      writePackageConfigFiles(directory: projectDir, mainLibName: 'my_app');
-      final environment = Environment.test(
-        projectDir,
-        defines: <String, String>{
-          kBuildMode: 'debug',
-          kTargetPlatform: entry.key,
-        },
-        fileSystem: fileSystem,
-        logger: logger,
-        artifacts: Artifacts.test(),
-        processManager: processManager,
-      );
       final runner = _RecordingRunner();
 
-      await TizenDartBuild(buildRunner: runner).build(environment);
+      await TizenDartBuild(buildRunner: runner)
+          .build(makeEnvironment(targetPlatform: entry.key, buildMode: 'debug'));
 
       final CodeAssetExtension codeExtension =
           runner.extensions!.whereType<CodeAssetExtension>().single;
@@ -70,68 +87,63 @@ void main() {
     });
   }
 
-  testUsingContext('TizenInstallCodeAssets installs Linux layout for Android aliases', () async {
-    final Directory projectDir = fileSystem.currentDirectory;
-    writePackageConfigFiles(directory: projectDir, mainLibName: 'my_app');
-    final environment = Environment.test(
-      projectDir,
-      defines: <String, String>{
-        kBuildMode: 'debug',
-        kTargetPlatform: 'android-arm64',
-      },
-      fileSystem: fileSystem,
-      logger: logger,
-      artifacts: Artifacts.test(),
-      processManager: processManager,
-    );
-    final File libFile = fileSystem.file('/tmp/libfoo.so')..createSync(recursive: true);
-    final codeAsset = CodeAsset(
-      package: 'foo',
-      name: 'foo.dart',
-      linkMode: DynamicLoadingBundled(),
-      file: libFile.uri,
-    );
-    final resultJson = <String, Object?>{
-      'build_start': DateTime.now().toIso8601String(),
-      'build_end': DateTime.now().toIso8601String(),
-      'dependencies': const <String>[],
-      'code_assets': <Object>[
-        <String, Object>{
-          'asset': codeAsset.encode().toJson(),
-          'target': native.Target.fromArchitectureAndOS(Architecture.arm64, OS.linux).toString(),
-        },
-      ],
-      'data_assets': const <Object>[],
-    };
-    environment.buildDir.createSync(recursive: true);
-    environment.buildDir
-        .childFile(TizenDartBuild.dartHookResultFilename)
-        .writeAsStringSync(json.encode(resultJson));
+  testUsingContext(
+    'TizenInstallCodeAssets writes linux key and installed lib path',
+    () async {
+      final Environment environment =
+          makeEnvironment(targetPlatform: 'android-arm64', buildMode: 'debug');
+      final File libFile = fileSystem.file('/tmp/libfoo.so')..createSync(recursive: true);
+      final codeAsset = CodeAsset(
+        package: 'foo',
+        name: 'foo.dart',
+        linkMode: DynamicLoadingBundled(),
+        file: libFile.uri,
+      );
+      final resultJson = <String, Object?>{
+        'build_start': DateTime.now().toIso8601String(),
+        'build_end': DateTime.now().toIso8601String(),
+        'dependencies': const <String>[],
+        'code_assets': <Object>[
+          <String, Object>{
+            'asset': codeAsset.encode().toJson(),
+            'target': native.Target.fromArchitectureAndOS(Architecture.arm64, OS.linux).toString(),
+          },
+        ],
+        'data_assets': const <Object>[],
+      };
+      environment.buildDir.createSync(recursive: true);
+      environment.buildDir
+          .childFile(TizenDartBuild.dartHookResultFilename)
+          .writeAsStringSync(json.encode(resultJson));
 
-    await const TizenInstallCodeAssets().build(environment);
+      await const TizenInstallCodeAssets().build(environment);
 
-    expect(
-        projectDir
+      expect(
+        fileSystem.currentDirectory
             .childDirectory('build')
             .childDirectory('native_assets')
             .childDirectory('linux')
             .childFile('libfoo.so'),
-        exists);
-    expect(
-        projectDir
-            .childDirectory('build')
-            .childDirectory('native_assets')
-            .childDirectory('android'),
-        isNot(exists));
-    final decoded =
-        json.decode(environment.buildDir.childFile('native_assets.json').readAsStringSync())
-            as Map<String, Object?>;
-    final nativeAssets = decoded['native-assets']! as Map<String, Object?>;
-    expect(nativeAssets.keys.single, 'linux_arm64');
-  }, overrides: <Type, Generator>{
-    FileSystem: () => fileSystem,
-    ProcessManager: () => processManager,
-  });
+        exists,
+      );
+      final File manifest = environment.buildDir.childFile('native_assets.json');
+      expect(manifest, exists);
+      final decoded = json.decode(manifest.readAsStringSync()) as Map<String, Object?>;
+      final nativeAssets = decoded['native-assets']! as Map<String, Object?>;
+      expect(nativeAssets.keys.single, 'linux_arm64');
+
+      final entries = nativeAssets['linux_arm64']! as Map<String, Object?>;
+      final pathParts = entries['package:foo/foo.dart']! as List<Object?>;
+      expect(pathParts, <Object?>[
+        'absolute',
+        '/opt/usr/globalapps/package_id/lib/libfoo.so',
+      ]);
+    },
+    overrides: <Type, Generator>{
+      FileSystem: () => fileSystem,
+      ProcessManager: () => processManager,
+    },
+  );
 }
 
 class _RecordingRunner implements FlutterNativeAssetsBuildRunner {

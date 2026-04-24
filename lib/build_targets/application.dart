@@ -16,6 +16,7 @@ import 'package:flutter_tools/src/build_system/targets/common.dart';
 import 'package:flutter_tools/src/build_system/targets/icon_tree_shaker.dart';
 import 'package:flutter_tools/src/compile.dart';
 import 'package:flutter_tools/src/dart/package_map.dart';
+import 'package:flutter_tools/src/devfs.dart';
 import 'package:flutter_tools/src/isolated/native_assets/dart_hook_result.dart';
 import 'package:package_config/src/package_config.dart';
 
@@ -157,6 +158,13 @@ abstract class TizenAssetBundle extends Target {
           .copySync(outputDirectory.childFile('isolate_snapshot_data').path);
     }
     final DartHooksResult dartHookResult = await TizenDartBuild.loadHookResult(environment);
+    // Stage the native-assets manifest into flutter_assets/ so the engine can
+    // resolve @Native-annotated FFI calls at runtime. In normal builds
+    // TizenInstallCodeAssets runs first and guarantees this file exists; the
+    // existsSync guard is only to keep isolated unit tests that drive this
+    // target without its dependency chain from blowing up.
+    final File nativeAssetsManifest =
+        environment.buildDir.childFile(TizenInstallCodeAssets.nativeAssetsFilename);
     final Depfile assetDepfile = await copyAssets(
       environment,
       outputDirectory,
@@ -164,6 +172,10 @@ abstract class TizenAssetBundle extends Target {
       buildMode: buildMode,
       flavor: environment.defines[kFlavor],
       dartHookResult: dartHookResult,
+      additionalContent: <String, DevFSContent>{
+        if (nativeAssetsManifest.existsSync())
+          'NativeAssetsManifest.json': DevFSFileContent(nativeAssetsManifest),
+      },
     );
     final depfileService = DepfileService(
       fileSystem: environment.fileSystem,

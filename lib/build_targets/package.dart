@@ -17,7 +17,27 @@ import '../tizen_sdk.dart';
 import '../tizen_tpk.dart';
 import 'application.dart';
 import 'embedding.dart';
+import 'native_assets.dart';
 import 'utils.dart';
+
+/// Copies bundled `.so` files produced by Dart build hooks into the TPK's
+/// `lib/` directory so they ship on-device alongside the engine/embedder.
+///
+/// The files live under `build/native_assets/linux/` after
+/// `TizenInstallCodeAssets` has run.
+@visibleForTesting
+void copyNativeAssetsToTpkLib(Environment environment, Directory libDir) {
+  final Directory nativeAssetsDir = nativeAssetsLibraryDirectory(environment.projectDir);
+  if (!nativeAssetsDir.existsSync()) {
+    return;
+  }
+  for (final FileSystemEntity entity in nativeAssetsDir.listSync()) {
+    if (entity is! File) {
+      continue;
+    }
+    entity.copySync(libDir.childFile(entity.basename).path);
+  }
+}
 
 /// This target doesn't specify any input or output but the build system always
 /// triggers [build] without skipping.
@@ -127,6 +147,9 @@ class DotnetTpk extends TizenPackage {
     if (pluginsLibDir.existsSync()) {
       copyDirectory(pluginsLibDir, libDir);
     }
+
+    // Copy bundled native assets produced by Dart build hooks.
+    copyNativeAssetsToTpkLib(environment, libDir);
 
     assert(tizenSdk != null);
     // The output TPK is signed with an active profile unless otherwise
@@ -310,6 +333,9 @@ class NativeTpk extends TizenPackage {
         },
       );
     }
+
+    // Copy bundled native assets produced by Dart build hooks.
+    copyNativeAssetsToTpkLib(environment, libDir);
 
     // Prepare for build.
     final Directory commonDir = getCommonArtifactsDirectory();
@@ -521,6 +547,9 @@ class DotnetModule extends TizenPackage {
     if (pluginsLibDir.existsSync()) {
       copyDirectory(pluginsLibDir, libDir);
     }
+
+    // Copy bundled native assets produced by Dart build hooks.
+    copyNativeAssetsToTpkLib(environment, libDir);
   }
 }
 
@@ -598,6 +627,9 @@ class NativeModule extends TizenPackage {
     if (pluginsLibDir.existsSync()) {
       copyDirectory(pluginsLibDir, libDir);
     }
+
+    // Copy bundled native assets produced by Dart build hooks.
+    copyNativeAssetsToTpkLib(environment, libDir);
 
     final Directory commonDir = getCommonArtifactsDirectory();
     final Directory clientWrapperDir = commonDir.childDirectory('cpp_client_wrapper');

@@ -17,10 +17,14 @@ import 'package:flutter_tools/src/dart/package_map.dart';
 import 'package:flutter_tools/src/features.dart';
 import 'package:flutter_tools/src/isolated/native_assets/dart_hook_result.dart';
 import 'package:flutter_tools/src/isolated/native_assets/native_assets.dart';
+import 'package:flutter_tools/src/project.dart';
 import 'package:hooks/hooks.dart';
 import 'package:hooks_runner/hooks_runner.dart' as native;
 import 'package:meta/meta.dart';
 import 'package:package_config/package_config_types.dart';
+
+import '../tizen_project.dart';
+import '../tizen_tpk.dart';
 
 /// Source: [DartBuild] in `native_assets.dart`
 class TizenDartBuild extends Target {
@@ -150,7 +154,18 @@ class TizenDartBuildForNative extends TizenDartBuild {
   List<Target> get dependencies => const <Target>[];
 }
 
-/// Source: [InstallCodeAssets] in `native_assets.dart`
+/// Installs bundled code assets produced by [TizenDartBuild] into a Linux-style
+/// flat layout under `build/native_assets/linux/` and writes the
+/// `native_assets.json` manifest consumed by the engine at runtime.
+///
+/// Upstream's `InstallCodeAssets` dispatches through
+/// `getNativeOSFromTargetPlatform`, which would return `OS.android` for Tizen's
+/// Android-aliased target platforms, producing a JNI directory layout. Tizen
+/// needs a flat `.so` layout to match the TPK's `lib/` directory, so this
+/// target re-implements the install logic against `OS.linux` while reusing
+/// upstream's [assetTargetLocationsForOS] for the kernel asset mapping.
+///
+/// Source: `InstallCodeAssets` in upstream `build_system/targets/native_assets.dart`.
 class TizenInstallCodeAssets extends Target {
   const TizenInstallCodeAssets();
 
@@ -158,35 +173,46 @@ class TizenInstallCodeAssets extends Target {
   Future<void> build(Environment environment) async {
     final Uri projectUri = environment.projectDir.uri;
     final FileSystem fileSystem = environment.fileSystem;
-    final TargetPlatform targetPlatform = _getTargetPlatformFromEnvironment(environment, name);
-    final TargetPlatform installTargetPlatform =
-        _getTizenNativeAssetsInstallTargetPlatform(targetPlatform);
 
-    // We fetch the result from the [DartBuild].
     final DartHooksResult dartHookResult = await TizenDartBuild.loadHookResult(environment);
-
-    // And install/copy the code assets to the right place and create a
-    // native_asset.yaml that can be used by the final AOT compilation.
     final Uri nativeAssetsFileUri = environment.buildDir.childFile(nativeAssetsFilename).uri;
-    await installCodeAssets(
-      dartHookResult: dartHookResult,
-      environmentDefines: environment.defines,
-      targetPlatform: installTargetPlatform,
-      projectUri: projectUri,
-      fileSystem: fileSystem,
-      nativeAssetsFileUri: nativeAssetsFileUri,
+    final Uri buildUri = nativeAssetsBuildUri(projectUri, OS.linux.name);
+
+    // Reuse upstream's public helper to map code assets to their final kernel
+    // locations (flat layout for OS.linux).
+    final Map<FlutterCodeAsset, native.KernelAsset> assetTargetLocations =
+        assetTargetLocationsForOS(
+      OS.linux,
+      dartHookResult.codeAssets,
+      /* flutterTester= */ false,
+      buildUri,
     );
-    assert(await fileSystem.file(nativeAssetsFileUri).exists());
+    _pruneStaleBundledCodeAssets(
+      buildUri: buildUri,
+      assetTargetLocations: assetTargetLocations,
+      fileSystem: fileSystem,
+    );
+
+    await _copyBundledCodeAssets(
+      buildUri: buildUri,
+      assetTargetLocations: assetTargetLocations,
+      fileSystem: fileSystem,
+    );
+    await _writeTizenNativeAssetsJson(
+      assetTargetLocations.values.toList(),
+      nativeAssetsFileUri,
+      fileSystem,
+      packageId: dartHookResult.codeAssets.isEmpty ? null : _tizenPackageId(environment),
+    );
 
     final depfile = Depfile(
       <File>[for (final Uri file in dartHookResult.filesToBeBundled) fileSystem.file(file)],
       <File>[fileSystem.file(nativeAssetsFileUri)],
     );
-    final File outputDepfile = environment.buildDir.childFile(depFilename);
-    environment.depFileService.writeToFile(depfile, outputDepfile);
-    if (!await outputDepfile.exists()) {
-      throwToolExit("${outputDepfile.path} doesn't exist.");
-    }
+    environment.depFileService.writeToFile(
+      depfile,
+      environment.buildDir.childFile(depFilename),
+    );
   }
 
   @override
@@ -200,7 +226,10 @@ class TizenInstallCodeAssets extends Target {
         Source.pattern(
           '{FLUTTER_ROOT}/packages/flutter_tools/lib/src/build_system/targets/native_assets.dart',
         ),
-        // If different packages are resolved, different native assets might need to be built.
+        Source.pattern('{FLUTTER_ROOT}/../lib/build_targets/native_assets.dart'),
+        Source.pattern('{PROJECT_DIR}/tizen/tizen-manifest.xml'),
+        Source.pattern('{PROJECT_DIR}/tizen/ui/tizen-manifest.xml'),
+        Source.pattern('{PROJECT_DIR}/.tizen/tizen-manifest.xml'),
         Source.pattern('{WORKSPACE_DIR}/.dart_tool/package_config.json'),
       ];
 
@@ -352,6 +381,115 @@ Architecture _getTizenNativeArchitecture(TargetPlatform targetPlatform) {
   return _getTizenNativeAssetTarget(targetPlatform).architecture;
 }
 
-TargetPlatform _getTizenNativeAssetsInstallTargetPlatform(TargetPlatform targetPlatform) {
-  return _getTizenNativeAssetTarget(targetPlatform).installTargetPlatform;
+void _pruneStaleBundledCodeAssets({
+  required Uri buildUri,
+  required Map<FlutterCodeAsset, native.KernelAsset> assetTargetLocations,
+  required FileSystem fileSystem,
+}) {
+  final Directory buildDir = fileSystem.directory(buildUri);
+  if (!buildDir.existsSync()) {
+    buildDir.createSync(recursive: true);
+    return;
+  }
+  final currentFiles = <String>{
+    for (final MapEntry<FlutterCodeAsset, native.KernelAsset> entry in assetTargetLocations.entries)
+      if (entry.key.codeAsset.linkMode is DynamicLoadingBundled)
+        (entry.value.path as native.KernelAssetAbsolutePath).uri.pathSegments.last,
+  };
+  for (final FileSystemEntity entity in buildDir.listSync()) {
+    if (currentFiles.contains(entity.basename)) {
+      continue;
+    }
+    entity.deleteSync(recursive: true);
+  }
 }
+
+String _tizenPackageId(Environment environment) {
+  final FlutterProject project = FlutterProject.fromDirectory(environment.projectDir);
+  final tizenProject = TizenProject.fromFlutter(project);
+  return TizenManifest.parseFromXml(tizenProject.manifestFile).packageId;
+}
+
+/// Copies bundled (`DynamicLoadingBundled`) assets from the hook output
+/// location to [buildUri] (typically `build/native_assets/linux/`), using the
+/// flat filename layout that upstream's [assetTargetLocationsForOS] computes
+/// for [OS.linux]. Later consumed by `NativeTpk`/`DotnetTpk` packaging.
+///
+/// Mirrors upstream's private `_copyNativeCodeAssetsToBundleOnWindowsLinux`
+/// helper; kept local because it is not exported.
+Future<void> _copyBundledCodeAssets({
+  required Uri buildUri,
+  required Map<FlutterCodeAsset, native.KernelAsset> assetTargetLocations,
+  required FileSystem fileSystem,
+}) async {
+  for (final MapEntry<FlutterCodeAsset, native.KernelAsset> entry in assetTargetLocations.entries) {
+    if (entry.key.codeAsset.linkMode is! DynamicLoadingBundled) {
+      continue;
+    }
+    final Uri source = entry.key.codeAsset.file!;
+    final Uri target = (entry.value.path as native.KernelAssetAbsolutePath).uri;
+    final Uri targetUri = buildUri.resolveUri(target);
+    final File sourceFile = fileSystem.file(source);
+    final File targetFile = fileSystem.file(targetUri);
+    if (!targetFile.parent.existsSync()) {
+      targetFile.parent.createSync(recursive: true);
+    }
+    if (sourceFile.path == targetFile.path) {
+      continue;
+    }
+    await sourceFile.copy(targetFile.path);
+  }
+}
+
+/// Writes the `native_assets.json` manifest that the Flutter engine reads at
+/// runtime to resolve `@Native`-annotated Dart FFI calls.
+///
+/// See `assets/native_assets.cc` in the engine for the expected format.
+/// Mirrors upstream's private `_writeNativeAssetsJson` / `_toNativeAssetsJsonFile`;
+/// kept local because those helpers are not exported.
+Future<void> _writeTizenNativeAssetsJson(
+  List<native.KernelAsset> assets,
+  Uri nativeAssetsJsonUri,
+  FileSystem fileSystem, {
+  required String? packageId,
+}) async {
+  final assetsPerTarget = <native.Target, List<native.KernelAsset>>{};
+  for (final asset in assets) {
+    assetsPerTarget.putIfAbsent(asset.target, () => <native.KernelAsset>[]).add(asset);
+  }
+  final jsonContents = <String, Object>{
+    'format-version': const <int>[1, 0, 0],
+    'native-assets': <String, Map<String, List<String>>>{
+      for (final MapEntry<native.Target, List<native.KernelAsset>> entry in assetsPerTarget.entries)
+        entry.key.toString(): <String, List<String>>{
+          for (final native.KernelAsset e in entry.value)
+            e.id: _tizenRuntimeAssetPath(e.path, packageId).toJson(),
+        },
+    },
+  };
+  final File nativeAssetsFile = fileSystem.file(nativeAssetsJsonUri);
+  nativeAssetsFile.parent.createSync(recursive: true);
+  await nativeAssetsFile.writeAsString(jsonEncode(jsonContents));
+}
+
+native.KernelAssetPath _tizenRuntimeAssetPath(native.KernelAssetPath path, String? packageId) {
+  if (packageId == null) {
+    return path;
+  }
+  if (path is native.KernelAssetAbsolutePath) {
+    final Uri uri = path.uri;
+    if (uri.scheme.isEmpty && !uri.path.startsWith('/')) {
+      final String fileName = uri.pathSegments.last;
+      return native.KernelAssetAbsolutePath(
+        Uri.file('/opt/usr/globalapps/$packageId/lib/$fileName'),
+      );
+    }
+  }
+  return path;
+}
+
+/// Resolves the directory where [TizenInstallCodeAssets] places bundled `.so`
+/// files for a project. Used by packaging targets to ship the files inside the
+/// TPK's `lib/` directory.
+Directory nativeAssetsLibraryDirectory(Directory projectDir) =>
+    projectDir.fileSystem.directory(nativeAssetsBuildUri(projectDir.uri, OS.linux.name));

@@ -59,4 +59,50 @@ void main() {
     FileSystem: () => fileSystem,
     ProcessManager: () => processManager,
   });
+
+  // Regression: when hooks produce bundled code assets, `build/native_assets.json`
+  // (written by TizenInstallCodeAssets) must be staged into the app's
+  // flutter_assets/ as `NativeAssetsManifest.json`, or the engine cannot resolve
+  // @Native-annotated FFI calls at runtime even though the .so files are shipped
+  // in the TPK's lib/.
+  testUsingContext('Debug bundle stages native assets manifest', () async {
+    final environment = Environment.test(
+      fileSystem.currentDirectory,
+      defines: <String, String>{kBuildMode: 'debug'},
+      fileSystem: fileSystem,
+      logger: logger,
+      artifacts: artifacts,
+      processManager: processManager,
+    );
+    environment.buildDir.childFile('app.dill').createSync(recursive: true);
+    fileSystem
+        .file(artifacts.getArtifactPath(Artifact.vmSnapshotData, mode: BuildMode.debug))
+        .createSync(recursive: true);
+    fileSystem
+        .file(artifacts.getArtifactPath(Artifact.isolateSnapshotData, mode: BuildMode.debug))
+        .createSync(recursive: true);
+
+    // Simulate the output of TizenInstallCodeAssets: a manifest sitting at
+    // `{BUILD_DIR}/native_assets.json` describing one bundled code asset.
+    const manifestContent =
+        '{"format-version":[1,0,0],"native-assets":{"linux_arm":{"package:foo/foo.dart":["absolute","libfoo.so"]}}}';
+    environment.buildDir.childFile('native_assets.json').writeAsStringSync(manifestContent);
+
+    await DebugTizenApplication(const TizenBuildInfo(
+      BuildInfo.debug,
+      targetArch: 'arm',
+      deviceProfile: 'common',
+    )).build(environment);
+
+    final Directory bundleDir = environment.buildDir.childDirectory('flutter_assets');
+    final File stagedManifest = bundleDir.childFile('NativeAssetsManifest.json');
+    expect(stagedManifest, exists,
+        reason: 'TizenAssetBundle must stage native_assets.json into '
+            'flutter_assets/NativeAssetsManifest.json so the engine can '
+            'resolve @Native FFI calls at runtime.');
+    expect(stagedManifest.readAsStringSync(), manifestContent);
+  }, overrides: <Type, Generator>{
+    FileSystem: () => fileSystem,
+    ProcessManager: () => processManager,
+  });
 }
