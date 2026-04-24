@@ -3,6 +3,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:code_assets/code_assets.dart';
+import 'package:data_assets/data_assets.dart';
 import 'package:flutter_tools/src/base/common.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/build_info.dart';
@@ -12,10 +14,11 @@ import 'package:flutter_tools/src/build_system/exceptions.dart';
 import 'package:flutter_tools/src/build_system/targets/native_assets.dart';
 import 'package:flutter_tools/src/convert.dart';
 import 'package:flutter_tools/src/dart/package_map.dart';
+import 'package:flutter_tools/src/features.dart';
 import 'package:flutter_tools/src/isolated/native_assets/dart_hook_result.dart';
-import 'package:flutter_tools/src/isolated/native_assets/linux/native_assets.dart';
 import 'package:flutter_tools/src/isolated/native_assets/native_assets.dart';
-import 'package:flutter_tools/src/isolated/native_assets/targets.dart';
+import 'package:hooks/hooks.dart';
+import 'package:hooks_runner/hooks_runner.dart' as native;
 import 'package:meta/meta.dart';
 import 'package:package_config/package_config_types.dart';
 
@@ -34,8 +37,6 @@ class TizenDartBuild extends Target {
   @override
   Future<void> build(Environment environment) async {
     final FileSystem fileSystem = environment.fileSystem;
-    final DartHooksResult result;
-
     final TargetPlatform targetPlatform =
         specifiedTargetPlatform ?? _getTargetPlatformFromEnvironment(environment, name);
 
@@ -64,7 +65,7 @@ class TizenDartBuild extends Target {
     final buildMode = BuildMode.fromCliName(buildModeEnvironment);
     final bool includeDevDependencies = !buildMode.isRelease;
     final FlutterNativeAssetsBuildRunner buildRunner = _buildRunner ??
-        TizenFlutterNativeAssetsBuildRunnerImpl(
+        FlutterNativeAssetsBuildRunnerImpl(
           environment.packageConfigPath,
           packageConfig,
           fileSystem,
@@ -73,12 +74,12 @@ class TizenDartBuild extends Target {
           includeDevDependencies: includeDevDependencies,
           pubspecPath,
         );
-    result = await runFlutterSpecificHooks(
-      environmentDefines: environment.defines,
+    final DartHooksResult result = await _runTizenSpecificHooks(
       buildRunner: buildRunner,
       targetPlatform: targetPlatform,
       projectUri: projectUri,
       fileSystem: fileSystem,
+      buildMode: buildMode,
     );
     final File dartHookResultJsonFile = environment.buildDir.childFile(dartHookResultFilename);
     if (!dartHookResultJsonFile.parent.existsSync()) {
@@ -158,6 +159,8 @@ class TizenInstallCodeAssets extends Target {
     final Uri projectUri = environment.projectDir.uri;
     final FileSystem fileSystem = environment.fileSystem;
     final TargetPlatform targetPlatform = _getTargetPlatformFromEnvironment(environment, name);
+    final TargetPlatform installTargetPlatform =
+        _getTizenNativeAssetsInstallTargetPlatform(targetPlatform);
 
     // We fetch the result from the [DartBuild].
     final DartHooksResult dartHookResult = await TizenDartBuild.loadHookResult(environment);
@@ -168,7 +171,7 @@ class TizenInstallCodeAssets extends Target {
     await installCodeAssets(
       dartHookResult: dartHookResult,
       environmentDefines: environment.defines,
-      targetPlatform: targetPlatform,
+      targetPlatform: installTargetPlatform,
       projectUri: projectUri,
       fileSystem: fileSystem,
       nativeAssetsFileUri: nativeAssetsFileUri,
@@ -219,27 +222,136 @@ TargetPlatform _getTargetPlatformFromEnvironment(Environment environment, String
   return getTargetPlatformForName(targetPlatformEnvironment);
 }
 
-class TizenFlutterNativeAssetsBuildRunnerImpl extends FlutterNativeAssetsBuildRunnerImpl {
-  TizenFlutterNativeAssetsBuildRunnerImpl(
-    super.packageConfigPath,
-    super.packageConfig,
-    super.fileSystem,
-    super.logger,
-    super.runPackageName,
-    super.pubspecPath, {
-    required super.includeDevDependencies,
-  });
+Future<DartHooksResult> _runTizenSpecificHooks({
+  required FlutterNativeAssetsBuildRunner buildRunner,
+  required TargetPlatform targetPlatform,
+  required Uri projectUri,
+  required FileSystem fileSystem,
+  required BuildMode buildMode,
+}) async {
+  final Directory buildDir = fileSystem.directory(nativeAssetsBuildUri(projectUri, OS.linux.name));
+  if (!buildDir.existsSync()) {
+    buildDir.createSync(recursive: true);
+  }
 
-  // TODO(JSUYA): Tizen uses Android's arm and arm64 TargetPlatforms. This caused the native_asset
-  // of flutter_tools to recognize the TargetOS as Android and use the NDK CCompiler. So, I added
-  // TizenFlutterNativeAssetsBuildRunnerImpl to modify the NativeAssetBuilder to use the Linux
-  // CCompiler(Tizen embedder) even when the asset is Android.
-  @override
-  Future<void> setCCompilerConfig(CodeAssetTarget target) async {
-    if (target is AndroidAssetTarget) {
-      target.cCompilerConfigSync = await cCompilerConfigLinux(throwIfNotFound: true);
-    } else {
-      await target.setCCompilerConfig();
+  final List<String> packagesWithNativeAssets = await buildRunner.packagesWithNativeAssets();
+  if (packagesWithNativeAssets.isEmpty) {
+    return DartHooksResult.empty();
+  }
+  if (!featureFlags.isNativeAssetsEnabled && !featureFlags.isDartDataAssetsEnabled) {
+    throwToolExit(
+      'Package(s) ${packagesWithNativeAssets.join(' ')} require the dart assets feature to be enabled.\n'
+      '  Enable code assets using `flutter-tizen config --enable-native-assets`.\n'
+      '  Enable data assets using `flutter-tizen config --enable-dart-data-assets`.',
+    );
+  }
+
+  final Architecture architecture = _getTizenNativeArchitecture(targetPlatform);
+  // Do not call setCCompilerConfig here. Flutter's Linux compiler discovery
+  // would return a host compiler, not a Tizen rootstrap-aware compiler.
+  final extensions = <ProtocolExtension>[
+    if (featureFlags.isNativeAssetsEnabled)
+      CodeAssetExtension(
+        targetArchitecture: architecture,
+        linkModePreference: LinkModePreference.dynamic,
+        targetOS: OS.linux,
+      ),
+    if (featureFlags.isDartDataAssetsEnabled) DataAssetsExtension(),
+  ];
+  final linkingEnabled = buildMode != BuildMode.debug;
+  final buildStart = DateTime.now();
+
+  final native.BuildResult? buildResult =
+      await buildRunner.build(extensions: extensions, linkingEnabled: linkingEnabled);
+  if (buildResult == null) {
+    throwToolExit('Building native assets failed. See the logs for more details.');
+  }
+
+  native.LinkResult? linkResult;
+  if (linkingEnabled) {
+    linkResult = await buildRunner.link(extensions: extensions, buildResult: buildResult);
+    if (linkResult == null) {
+      throwToolExit('Linking native assets failed. See the logs for more details.');
     }
   }
+
+  final target = native.Target.fromArchitectureAndOS(architecture, OS.linux);
+  final encodedAssets = <EncodedAsset>[
+    ...buildResult.encodedAssets,
+    if (linkResult != null) ...linkResult.encodedAssets,
+  ];
+  final codeAssets = <FlutterCodeAsset>[
+    for (final EncodedAsset asset in encodedAssets)
+      if (asset.isCodeAsset) FlutterCodeAsset(codeAsset: asset.asCodeAsset, target: target),
+  ];
+  final dataAssets = <DataAsset>[
+    for (final EncodedAsset asset in encodedAssets)
+      if (asset.isDataAsset) DataAsset.fromEncoded(asset),
+  ];
+  if (dataAssets.map((DataAsset asset) => asset.id).toSet().length != dataAssets.length) {
+    throwToolExit(
+      'Found duplicates in the data assets: '
+      '${dataAssets.map((DataAsset asset) => asset.id).toList()} '
+      'while compiling for linux_${architecture.name}.',
+    );
+  }
+  if (codeAssets.toSet().length != codeAssets.length) {
+    throwToolExit(
+      'Found duplicates in the code assets: '
+      '${codeAssets.map((FlutterCodeAsset asset) => asset.codeAsset.id).toList()} '
+      'while compiling for linux_${architecture.name}.',
+    );
+  }
+
+  return DartHooksResult(
+    buildStart: buildStart,
+    buildEnd: DateTime.now(),
+    codeAssets: codeAssets,
+    dataAssets: dataAssets,
+    dependencies: <Uri>{
+      ...buildResult.dependencies,
+      if (linkResult != null) ...linkResult.dependencies,
+    }.toList(),
+  );
+}
+
+typedef _TizenNativeAssetTarget = ({
+  Architecture architecture,
+  TargetPlatform installTargetPlatform,
+});
+
+/// Resolves Flutter target aliases used by Tizen native assets.
+///
+/// Tizen reuses Flutter's Android/tester target platforms as architecture
+/// aliases. Dart hooks must see Linux as the OS, and [installCodeAssets] only
+/// needs a Linux [TargetPlatform] to select the copy layout. The actual
+/// per-asset architecture is carried by each [FlutterCodeAsset].
+_TizenNativeAssetTarget _getTizenNativeAssetTarget(TargetPlatform targetPlatform) {
+  return switch (targetPlatform) {
+    TargetPlatform.android_arm => (
+        architecture: Architecture.arm,
+        installTargetPlatform: TargetPlatform.linux_x64,
+      ),
+    TargetPlatform.android_arm64 => (
+        architecture: Architecture.arm64,
+        installTargetPlatform: TargetPlatform.linux_arm64,
+      ),
+    TargetPlatform.android_x64 => (
+        architecture: Architecture.x64,
+        installTargetPlatform: TargetPlatform.linux_x64,
+      ),
+    TargetPlatform.tester => (
+        architecture: Architecture.ia32,
+        installTargetPlatform: TargetPlatform.linux_x64,
+      ),
+    _ => throwToolExit('Native assets are not supported for $targetPlatform on Tizen.'),
+  };
+}
+
+Architecture _getTizenNativeArchitecture(TargetPlatform targetPlatform) {
+  return _getTizenNativeAssetTarget(targetPlatform).architecture;
+}
+
+TargetPlatform _getTizenNativeAssetsInstallTargetPlatform(TargetPlatform targetPlatform) {
+  return _getTizenNativeAssetTarget(targetPlatform).installTargetPlatform;
 }
