@@ -132,6 +132,10 @@ class FlutterEngine : public flutter::PluginRegistry {
   // Whether or not this wrapper owns |engine_|.
   bool owns_engine_ = true;
 
+  // Shared lifetime flag used by FlutterView wrappers to avoid calling back
+  // into a C engine handle after shutdown.
+  std::shared_ptr<bool> engine_alive_ = std::make_shared<bool>(true);
+
   // The engine arguments instance.
   std::unique_ptr<FlutterEngineArguments> engine_arguments_;
 };

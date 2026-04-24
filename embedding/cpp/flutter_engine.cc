@@ -68,6 +68,9 @@ FlutterEngine::FlutterEngine(
 }
 
 FlutterEngine::~FlutterEngine() {
+  if (engine_alive_) {
+    *engine_alive_ = false;
+  }
   if (owns_engine_) {
     Shutdown();
   }
@@ -81,6 +84,9 @@ bool FlutterEngine::Run() {
 }
 
 void FlutterEngine::Shutdown() {
+  if (engine_alive_) {
+    *engine_alive_ = false;
+  }
   if (engine_) {
     FlutterDesktopEngineShutdown(engine_);
     engine_ = nullptr;
@@ -140,6 +146,7 @@ struct AddViewContext {
   FlutterDesktopEngineRef engine;
   FlutterDesktopViewRef view;  // Lazily populated; may still be null when the
                                 // trampoline fires after a synchronous failure.
+  std::shared_ptr<bool> engine_alive;
   FlutterEngine::AddViewCallback callback;
 };
 
@@ -148,7 +155,8 @@ void AddViewTrampoline(bool added, FlutterDesktopViewId view_id,
   auto* ctx = static_cast<AddViewContext*>(user_data);
   std::unique_ptr<FlutterView> view;
   if (added && ctx->view) {
-    view = std::make_unique<FlutterView>(ctx->engine, ctx->view, view_id);
+    view = std::make_unique<FlutterView>(ctx->engine, ctx->view, view_id,
+                                         ctx->engine_alive);
   }
   if (ctx->callback) {
     ctx->callback(std::move(view), added);
@@ -170,7 +178,8 @@ bool FlutterEngine::AddView(const FlutterDesktopWindowProperties& properties,
     }
     return false;
   }
-  auto* ctx = new AddViewContext{engine_, nullptr, std::move(callback)};
+  auto* ctx =
+      new AddViewContext{engine_, nullptr, engine_alive_, std::move(callback)};
   FlutterDesktopViewRef view = FlutterDesktopEngineAddView(
       engine_, properties, &AddViewTrampoline, ctx);
   // |FlutterDesktopEngineAddView|'s contract is that it always invokes our

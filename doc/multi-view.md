@@ -78,6 +78,9 @@ additional top-level windows.
 #include <flutter_app.h>
 #include <flutter_view.h>
 
+#include <memory>
+#include <vector>
+
 class App : public FlutterApp {
  public:
   void OnImplicitViewReady() override {
@@ -87,15 +90,19 @@ class App : public FlutterApp {
     props.top_level = true;
     props.renderer_type = kEGL;
 
-    AddView(props, [](std::unique_ptr<FlutterView> view, bool added) {
+    AddView(props, [this](std::unique_ptr<FlutterView> view, bool added) {
       if (added) {
         dlog_print(DLOG_INFO, "Flutter",
                    "Secondary view id=%lld is ready",
                    static_cast<long long>(view->GetId()));
-        // Dropping |view| later triggers an async RemoveView on the engine.
+        views_.push_back(std::move(view));
       }
     });
   }
+
+ private:
+  // Dropping a view later triggers an async RemoveView on the engine.
+  std::vector<std::unique_ptr<FlutterView>> views_;
 };
 
 int main(int argc, char* argv[]) {

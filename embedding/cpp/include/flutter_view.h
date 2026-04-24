@@ -7,6 +7,8 @@
 
 #include <flutter_tizen.h>
 
+#include <memory>
+
 // Wrapper around a |FlutterDesktopViewRef|.
 //
 // Represents a single Tizen window/view hosted by a Flutter engine. The
@@ -23,7 +25,8 @@ class FlutterView {
   // the implicit view requires shutting down the engine itself.
   FlutterView(FlutterDesktopEngineRef engine,
               FlutterDesktopViewRef view,
-              FlutterDesktopViewId view_id);
+              FlutterDesktopViewId view_id,
+              std::shared_ptr<bool> engine_alive = nullptr);
 
   ~FlutterView();
 
@@ -40,6 +43,7 @@ class FlutterView {
   FlutterDesktopEngineRef engine_ = nullptr;
   FlutterDesktopViewRef view_ = nullptr;
   FlutterDesktopViewId view_id_ = FLUTTER_DESKTOP_IMPLICIT_VIEW_ID;
+  std::shared_ptr<bool> engine_alive_;
 };
 
 #endif  // FLUTTER_TIZEN_EMBEDDING_CPP_INCLUDE_FLUTTER_VIEW_H_
