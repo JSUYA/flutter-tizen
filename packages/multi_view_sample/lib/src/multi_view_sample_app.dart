@@ -226,7 +226,12 @@ class MultiViewSampleHome extends StatelessWidget {
           ),
           body: Row(
             children: <Widget>[
-              Expanded(child: _StagePanel(stageMapper: stageMapper)),
+              Expanded(
+                child: _StagePanel(
+                  controller: controller,
+                  stageMapper: stageMapper,
+                ),
+              ),
               SizedBox(
                 width: 360,
                 child: _ControlPanel(
@@ -268,9 +273,15 @@ class _Metric extends StatelessWidget {
   }
 }
 
-class _StagePanel extends StatelessWidget {
-  const _StagePanel({required this.stageMapper});
+const double _stageDragHandleSize = 38;
+const double _stageDragHandleGap = 6;
+const double _stageDragHandleRailHeight =
+    _stageDragHandleSize + _stageDragHandleGap;
 
+class _StagePanel extends StatelessWidget {
+  const _StagePanel({required this.controller, required this.stageMapper});
+
+  final MultiViewSampleController controller;
   final MultiViewStageMapper stageMapper;
 
   @override
@@ -280,29 +291,55 @@ class _StagePanel extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
+          final double availableHeight = math.max(
+            1,
+            constraints.maxHeight - _stageDragHandleRailHeight,
+          );
           final double scale = math.min(
             constraints.maxWidth / sampleStageSize.width,
-            constraints.maxHeight / sampleStageSize.height,
+            availableHeight / sampleStageSize.height,
           );
           final Size stage = sampleStageSize * scale;
           return Center(
-            child: _StageViewportReporter(
-              stageMapper: stageMapper,
-              stageScale: scale,
-              child: SizedBox(
-                width: stage.width,
-                height: stage.height,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xffc7d0da)),
+            child: SizedBox(
+              width: stage.width,
+              height: stage.height + _stageDragHandleRailHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Positioned(
+                    top: _stageDragHandleRailHeight,
+                    left: 0,
+                    width: stage.width,
+                    height: stage.height,
+                    child: _StageViewportReporter(
+                      stageMapper: stageMapper,
+                      stageScale: scale,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: const Color(0xffc7d0da)),
+                        ),
+                        child: const Stack(
+                          children: <Widget>[
+                            Positioned.fill(child: _StageGrid()),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Stack(
-                    children: <Widget>[
-                      const Positioned.fill(child: _StageGrid()),
-                    ],
-                  ),
-                ),
+                  for (final SampleViewSpec spec in controller.views)
+                    if (spec.viewId != null)
+                      Positioned.fill(
+                        child: _StageViewChrome(
+                          key: ValueKey<String>('chrome-${spec.localId}'),
+                          controller: controller,
+                          spec: spec,
+                          stageScale: scale,
+                          stageTop: _stageDragHandleRailHeight,
+                        ),
+                      ),
+                ],
               ),
             ),
           );
@@ -379,6 +416,164 @@ class _StageGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StageGridPainter oldDelegate) => false;
+}
+
+class _StageViewChrome extends StatefulWidget {
+  const _StageViewChrome({
+    super.key,
+    required this.controller,
+    required this.spec,
+    required this.stageScale,
+    required this.stageTop,
+  });
+
+  final MultiViewSampleController controller;
+  final SampleViewSpec spec;
+  final double stageScale;
+  final double stageTop;
+
+  @override
+  State<_StageViewChrome> createState() => _StageViewChromeState();
+}
+
+class _StageViewChromeState extends State<_StageViewChrome> {
+  Rect? _dragStartGeometry;
+  Offset? _dragStartGlobalPosition;
+
+  bool get _enabled =>
+      !widget.controller.busy &&
+      !widget.controller.runningScript &&
+      !widget.spec.busy &&
+      widget.spec.viewId != null;
+
+  @override
+  Widget build(BuildContext context) {
+    final Rect geometry = widget.spec.geometry;
+    final double scale = widget.stageScale;
+    final double stageWidth = sampleStageSize.width * scale;
+    final double outlineLeft = geometry.left * scale;
+    final double outlineTop = widget.stageTop + geometry.top * scale;
+    final double outlineWidth = geometry.width * scale;
+    final double outlineHeight = geometry.height * scale;
+    final double maxHandleLeft = math.max(0, stageWidth - _stageDragHandleSize);
+    final double handleLeft =
+        (geometry.center.dx * scale - _stageDragHandleSize / 2).clamp(
+          0.0,
+          maxHandleLeft,
+        );
+    final double handleTop =
+        widget.stageTop +
+        geometry.top * scale -
+        _stageDragHandleSize -
+        _stageDragHandleGap;
+    final bool selected =
+        widget.controller.selectedLocalId == widget.spec.localId;
+    final Color color = selected
+        ? Theme.of(context).colorScheme.primary
+        : const Color(0xff4c5967);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        Positioned(
+          left: outlineLeft,
+          top: outlineTop,
+          width: outlineWidth,
+          height: outlineHeight,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: selected ? color : const Color(0x994c5967),
+                  width: selected ? 2 : 1,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: handleLeft,
+          top: handleTop,
+          width: _stageDragHandleSize,
+          height: _stageDragHandleSize,
+          child: Tooltip(
+            message: 'Drag ${widget.spec.kind.label} view',
+            child: Semantics(
+              button: true,
+              label: 'Drag ${widget.spec.kind.label} view',
+              child: MouseRegion(
+                cursor: _enabled
+                    ? SystemMouseCursors.move
+                    : SystemMouseCursors.basic,
+                child: GestureDetector(
+                  key: ValueKey<String>('drag-handle-${widget.spec.localId}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _enabled
+                      ? () => widget.controller.select(widget.spec.localId)
+                      : null,
+                  onPanStart: _enabled ? _handlePanStart : null,
+                  onPanUpdate: _enabled ? _handlePanUpdate : null,
+                  onPanEnd: _enabled ? (_) => _finishDrag() : null,
+                  onPanCancel: _enabled ? _finishDrag : null,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _enabled ? Colors.white : const Color(0xffd9e0e7),
+                      border: Border.all(color: color, width: selected ? 2 : 1),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.open_with,
+                      size: 20,
+                      color: _enabled ? color : const Color(0xff7b8794),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    _dragStartGeometry = widget.spec.geometry;
+    _dragStartGlobalPosition = details.globalPosition;
+    widget.controller.select(widget.spec.localId);
+  }
+
+  void _handlePanUpdate(DragUpdateDetails details) {
+    final Rect? startGeometry = _dragStartGeometry;
+    final Offset? startGlobalPosition = _dragStartGlobalPosition;
+    if (startGeometry == null ||
+        startGlobalPosition == null ||
+        widget.stageScale <= 0) {
+      return;
+    }
+    final Offset stageDelta =
+        (details.globalPosition - startGlobalPosition) / widget.stageScale;
+    widget.controller.dragViewTo(
+      widget.spec.localId,
+      startGeometry.shift(stageDelta),
+    );
+  }
+
+  void _finishDrag() {
+    if (_dragStartGeometry == null) {
+      return;
+    }
+    _dragStartGeometry = null;
+    _dragStartGlobalPosition = null;
+    widget.controller.finishDrag(widget.spec.localId);
+  }
 }
 
 class _ControlPanel extends StatelessWidget {

@@ -63,6 +63,32 @@ void main() {
     expect(client.registeredViewIds(), <int>[0, 1]);
   });
 
+  test('drags a view in place without registering another view', () async {
+    final FakeMultiViewClient client = FakeMultiViewClient();
+    final MultiViewSampleController controller = MultiViewSampleController(
+      client: client,
+    );
+
+    final SampleViewSpec view = await controller.addPreset(
+      SampleViewKind.dashboard,
+    );
+
+    final bool accepted = controller.dragViewTo(
+      view.localId,
+      view.geometry.shift(const Offset(80, 44)),
+    );
+    controller.finishDrag(view.localId);
+
+    expect(accepted, isTrue);
+    expect(controller.views.single.geometry.left, 128);
+    expect(controller.views.single.geometry.top, 92);
+    expect(controller.views.single.viewId, 1);
+    expect(client.updatedViewIds, <int>[1]);
+    expect(client.removedViewIds, isEmpty);
+    expect(client.registeredViewIds(), <int>[0, 1]);
+    expect(controller.events.first, contains('drag local=${view.localId}'));
+  });
+
   test('stress scenario leaves no secondary views registered', () async {
     final FakeMultiViewClient client = FakeMultiViewClient();
     final MultiViewSampleController controller = MultiViewSampleController(

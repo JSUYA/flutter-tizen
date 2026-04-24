@@ -81,4 +81,37 @@ void main() {
       hasLength(SampleViewKind.values.length + 1),
     );
   });
+
+  testWidgets('stage drag handle moves a native view in place', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final FakeMultiViewClient client = FakeMultiViewClient();
+    final MultiViewSampleController controller = MultiViewSampleController(
+      client: client,
+    );
+
+    await tester.pumpWidget(MultiViewSampleApp(controller: controller));
+    await tester.tap(find.widgetWithText(FilledButton, 'Dashboard'));
+    await tester.pumpAndSettle();
+
+    final Offset before = controller.views.single.geometry.topLeft;
+    await tester.drag(
+      find.byKey(const ValueKey<String>('drag-handle-view-1')),
+      const Offset(80, 40),
+    );
+    await tester.pumpAndSettle();
+
+    expect(controller.views, hasLength(1));
+    expect(controller.views.single.geometry.left, greaterThan(before.dx));
+    expect(controller.views.single.geometry.top, greaterThan(before.dy));
+    expect(controller.views.single.viewId, 1);
+    expect(client.updatedViewIds, contains(1));
+    expect(client.removedViewIds, isEmpty);
+    expect(client.registeredViewIds(), <int>[0, 1]);
+  });
 }

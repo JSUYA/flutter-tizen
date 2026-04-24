@@ -297,6 +297,9 @@ class MultiViewSampleController extends ChangeNotifier {
   Future<void> _mutationQueue = Future<void>.value();
   int _pendingMutations = 0;
   bool _runningScript = false;
+  final Map<String, MultiViewRequest> _pendingLiveGeometryUpdates =
+      <String, MultiViewRequest>{};
+  final Set<String> _liveGeometryUpdatesInFlight = <String>{};
 
   List<SampleViewSpec> get views => List<SampleViewSpec>.unmodifiable(_views);
   List<String> get events => List<String>.unmodifiable(_events);
@@ -327,6 +330,36 @@ class MultiViewSampleController extends ChangeNotifier {
 
   Future<void> move(String localId, Offset delta) {
     return _enqueueMutation<void>(() => _move(localId, delta));
+  }
+
+  bool dragViewTo(String localId, Rect geometry) {
+    if (_pendingMutations > 0 || _runningScript) {
+      return false;
+    }
+    final SampleViewSpec? view = _find(localId);
+    if (view == null || view.busy || view.viewId == null) {
+      return false;
+    }
+
+    final Rect clamped = _clampRect(geometry);
+    if (_sameRect(view.geometry, clamped)) {
+      return true;
+    }
+
+    final SampleViewSpec next = view.copyWith(geometry: clamped);
+    _replace(next);
+    _selectedLocalId = localId;
+    notifyListeners();
+    _scheduleLiveGeometryUpdate(next);
+    return true;
+  }
+
+  void finishDrag(String localId) {
+    final SampleViewSpec? view = _find(localId);
+    if (view == null || view.viewId == null) {
+      return;
+    }
+    _record('drag local=$localId viewId=${view.viewId}');
   }
 
   Future<void> resize(String localId, double scale) {
@@ -392,6 +425,7 @@ class MultiViewSampleController extends ChangeNotifier {
 
   Future<void> _remove(String localId) async {
     final SampleViewSpec view = _require(localId);
+    _pendingLiveGeometryUpdates.remove(localId);
     _replace(view.copyWith(busy: true, clearViewId: true));
     notifyListeners();
     await _waitForViewCollectionFrame();
@@ -652,6 +686,15 @@ class MultiViewSampleController extends ChangeNotifier {
     return _views.firstWhere((SampleViewSpec view) => view.localId == localId);
   }
 
+  SampleViewSpec? _find(String localId) {
+    for (final SampleViewSpec view in _views) {
+      if (view.localId == localId) {
+        return view;
+      }
+    }
+    return null;
+  }
+
   void _replace(SampleViewSpec next) {
     final int index = _views.indexWhere(
       (SampleViewSpec view) => view.localId == next.localId,
@@ -672,6 +715,56 @@ class MultiViewSampleController extends ChangeNotifier {
   String _formatRect(Rect rect) {
     return '${rect.left.round()},${rect.top.round()} '
         '${rect.width.round()}x${rect.height.round()}';
+  }
+
+  bool _sameRect(Rect a, Rect b) {
+    const double epsilon = 0.001;
+    return (a.left - b.left).abs() < epsilon &&
+        (a.top - b.top).abs() < epsilon &&
+        (a.width - b.width).abs() < epsilon &&
+        (a.height - b.height).abs() < epsilon;
+  }
+
+  void _scheduleLiveGeometryUpdate(SampleViewSpec spec) {
+    _pendingLiveGeometryUpdates[spec.localId] = spec.toRequest();
+    if (_liveGeometryUpdatesInFlight.contains(spec.localId)) {
+      return;
+    }
+    _flushLiveGeometryUpdate(spec.localId);
+  }
+
+  void _flushLiveGeometryUpdate(String localId) {
+    final MultiViewRequest? request = _pendingLiveGeometryUpdates.remove(
+      localId,
+    );
+    if (request == null) {
+      return;
+    }
+
+    final int? viewId = _find(localId)?.viewId;
+    if (viewId == null) {
+      return;
+    }
+
+    _liveGeometryUpdatesInFlight.add(localId);
+    unawaited(
+      client
+          .updateView(viewId, request)
+          .then<void>((bool updated) {
+            if (!updated) {
+              _record('drag-update local=$localId viewId=$viewId failed');
+            }
+          })
+          .catchError((Object error, StackTrace _) {
+            _record('drag-update local=$localId viewId=$viewId error=$error');
+          })
+          .whenComplete(() {
+            _liveGeometryUpdatesInFlight.remove(localId);
+            if (_pendingLiveGeometryUpdates.containsKey(localId)) {
+              _flushLiveGeometryUpdate(localId);
+            }
+          }),
+    );
   }
 
   void _record(String message) {
