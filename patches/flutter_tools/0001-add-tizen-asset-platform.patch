@@ -52,3 +52,73 @@ index a33f2ae3ca7..56bab017a3d 100644
 @@ -960 +961 @@ class AssetsEntry {
 -            'Invalid platform(s): "${invalidPlatforms.join(", ")}". Supported platforms are: "${_kValidPluginPlatforms.join(", ")}".',
 +            'Invalid platform(s): "${invalidPlatforms.join(", ")}". Supported platforms are: "${_kValidAssetPlatforms.join(", ")}".',
+diff --git a/packages/flutter_tools/test/general.shard/build_system/targets/assets_test.dart b/packages/flutter_tools/test/general.shard/build_system/targets/assets_test.dart
+index cf55efed9e3..c14bafaa979 100644
+--- a/packages/flutter_tools/test/general.shard/build_system/targets/assets_test.dart
++++ b/packages/flutter_tools/test/general.shard/build_system/targets/assets_test.dart
+@@ -21,0 +22 @@ import 'package:flutter_tools/src/globals.dart' as globals;
++import 'package:flutter_tools/src/isolated/native_assets/dart_hook_result.dart';
+@@ -616,0 +618,43 @@ flutter:
++
++    testUsingContext(
++      'uses assetPlatform override when filtering assets',
++      () async {
++        fileSystem.file('pubspec.yaml')
++          ..createSync()
++          ..writeAsStringSync('''
++name: example
++flutter:
++  assets:
++    - path: assets/common.txt
++    - path: assets/tizen.txt
++      platforms:
++        - tizen
++    - path: assets/android.txt
++      platforms:
++        - android
++''');
++        writePackageConfigFiles(directory: globals.fs.currentDirectory, mainLibName: 'example');
++        fileSystem.file('assets/common.txt').createSync(recursive: true);
++        fileSystem.file('assets/tizen.txt').createSync(recursive: true);
++        fileSystem.file('assets/android.txt').createSync(recursive: true);
++
++        final Directory output = environment.buildDir.childDirectory('flutter_assets')
++          ..createSync(recursive: true);
++        await copyAssets(
++          environment,
++          output,
++          dartHookResult: DartHooksResult.empty(),
++          targetPlatform: TargetPlatform.android,
++          assetPlatform: 'tizen',
++          buildMode: BuildMode.debug,
++        );
++
++        expect(output.childFile('assets/common.txt'), exists);
++        expect(output.childFile('assets/tizen.txt'), exists);
++        expect(output.childFile('assets/android.txt'), isNot(exists));
++      },
++      overrides: <Type, Generator>{
++        FileSystem: () => fileSystem,
++        ProcessManager: () => FakeProcessManager.any(),
++      },
++    );
+diff --git a/packages/flutter_tools/test/general.shard/devfs_test.dart b/packages/flutter_tools/test/general.shard/devfs_test.dart
+index ba5e9858395..d4498ebab21 100644
+--- a/packages/flutter_tools/test/general.shard/devfs_test.dart
++++ b/packages/flutter_tools/test/general.shard/devfs_test.dart
+@@ -986 +986 @@ class FakeBundle extends AssetBundle {
+-    String? packageConfigPath,
++    required String packageConfigPath,
+@@ -988 +988,2 @@ class FakeBundle extends AssetBundle {
+-    TargetPlatform? targetPlatform,
++    required TargetPlatform targetPlatform,
++    String? assetPlatform,
+diff --git a/packages/flutter_tools/test/general.shard/flutter_manifest_test.dart b/packages/flutter_tools/test/general.shard/flutter_manifest_test.dart
+index a243df8a77c..9689deefc7c 100644
+--- a/packages/flutter_tools/test/general.shard/flutter_manifest_test.dart
++++ b/packages/flutter_tools/test/general.shard/flutter_manifest_test.dart
+@@ -1588,0 +1589 @@ flutter:
++        - tizen
+@@ -1599 +1600 @@ flutter:
+-    expect(entry.platforms, containsAll(<String>['web', 'android']));
++    expect(entry.platforms, containsAll(<String>['web', 'android', 'tizen']));
