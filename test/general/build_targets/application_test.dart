@@ -14,6 +14,7 @@ import 'package:flutter_tools/src/build_system/build_system.dart';
 
 import '../../src/common.dart';
 import '../../src/context.dart';
+import '../../src/package_config.dart';
 
 void main() {
   late FileSystem fileSystem;
@@ -55,6 +56,62 @@ void main() {
     expect(bundleDir.childFile('vm_snapshot_data'), exists);
     expect(bundleDir.childFile('isolate_snapshot_data'), exists);
     expect(bundleDir.childFile('kernel_blob.bin'), exists);
+  }, overrides: <Type, Generator>{
+    FileSystem: () => fileSystem,
+    ProcessManager: () => processManager,
+  });
+
+  testUsingContext('Debug bundle filters assets with tizen platform', () async {
+    final Directory projectDir = fileSystem.currentDirectory;
+    writePackageConfigFiles(directory: projectDir, mainLibName: 'asset_platform_test');
+    projectDir.childFile('pubspec.yaml').writeAsStringSync('''
+name: asset_platform_test
+flutter:
+  assets:
+    - assets/common.txt
+    - path: assets/tizen.txt
+      platforms:
+        - tizen
+    - path: assets/android.txt
+      platforms:
+        - android
+    - path: assets/linux.txt
+      platforms:
+        - linux
+''');
+    projectDir.childDirectory('assets').createSync(recursive: true);
+    projectDir.childFile('assets/common.txt').writeAsStringSync('common');
+    projectDir.childFile('assets/tizen.txt').writeAsStringSync('tizen');
+    projectDir.childFile('assets/android.txt').writeAsStringSync('android');
+    projectDir.childFile('assets/linux.txt').writeAsStringSync('linux');
+
+    final environment = Environment.test(
+      projectDir,
+      defines: <String, String>{kBuildMode: 'debug'},
+      fileSystem: fileSystem,
+      logger: logger,
+      artifacts: artifacts,
+      processManager: processManager,
+    );
+    environment.buildDir.childFile('app.dill').createSync(recursive: true);
+    fileSystem
+        .file(artifacts.getArtifactPath(Artifact.vmSnapshotData, mode: BuildMode.debug))
+        .createSync(recursive: true);
+    fileSystem
+        .file(artifacts.getArtifactPath(Artifact.isolateSnapshotData, mode: BuildMode.debug))
+        .createSync(recursive: true);
+
+    await DebugTizenApplication(const TizenBuildInfo(
+      BuildInfo.debug,
+      targetArch: 'arm',
+      deviceProfile: 'common',
+    )).build(environment);
+
+    final Directory bundleDir = environment.buildDir.childDirectory('flutter_assets');
+    expect(bundleDir.childFile('assets/common.txt'), exists);
+    expect(bundleDir.childFile('assets/tizen.txt'), exists);
+    expect(bundleDir.childFile('assets/android.txt'), isNot(exists));
+    expect(bundleDir.childFile('assets/linux.txt'), isNot(exists));
   }, overrides: <Type, Generator>{
     FileSystem: () => fileSystem,
     ProcessManager: () => processManager,

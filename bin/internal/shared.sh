@@ -28,6 +28,51 @@ SNAPSHOT_PATH="$ROOT_DIR/bin/cache/flutter-tizen.snapshot"
 
 FLUTTER_EXE="$FLUTTER_DIR/bin/flutter"
 DART_EXE="$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart"
+FLUTTER_PATCH_DIR="$ROOT_DIR/patches/flutter_tools"
+FLUTTER_PATCH_STAMP_PATH="$FLUTTER_DIR/bin/cache/flutter-tizen-patches.stamp"
+
+function apply_flutter_patches() {
+  if [[ ! -d "$FLUTTER_PATCH_DIR" ]]; then
+    return
+  fi
+
+  local patch_revision=""
+  patch_revision="$(git --git-dir="$ROOT_DIR/.git" --work-tree="$ROOT_DIR" \
+    rev-parse HEAD:patches/flutter_tools 2>/dev/null || true)"
+  local patch_state_changed=0
+  if [[ -n "$patch_revision" ]]; then
+    if [[ ! -f "$FLUTTER_PATCH_STAMP_PATH" ]]; then
+      patch_state_changed=1
+    elif [[ "$patch_revision" != "$(cat "$FLUTTER_PATCH_STAMP_PATH")" ]]; then
+      patch_state_changed=1
+      git -C "$FLUTTER_DIR" reset --hard
+      git -C "$FLUTTER_DIR" checkout "$(cat "$ROOT_DIR/bin/internal/flutter.version")" > /dev/null
+    fi
+  fi
+
+  local patch_applied=0
+  shopt -s nullglob
+  for patch_file in "$FLUTTER_PATCH_DIR"/*.patch; do
+    if git -C "$FLUTTER_DIR" apply --unidiff-zero --check "$patch_file" > /dev/null 2>&1; then
+      git -C "$FLUTTER_DIR" apply --unidiff-zero --whitespace=nowarn "$patch_file"
+      patch_applied=1
+    elif git -C "$FLUTTER_DIR" apply --unidiff-zero --reverse --check "$patch_file" > /dev/null 2>&1; then
+      continue
+    else
+      >&2 echo "Failed to apply Flutter patch: $patch_file"
+      exit 1
+    fi
+  done
+  shopt -u nullglob
+
+  if [[ "$patch_applied" == "1" || "$patch_state_changed" == "1" ]]; then
+    rm -f "$FLUTTER_DIR/bin/cache/flutter_tools.stamp"
+  fi
+  if [[ -n "$patch_revision" ]]; then
+    mkdir -p "$FLUTTER_DIR/bin/cache"
+    echo "$patch_revision" > "$FLUTTER_PATCH_STAMP_PATH"
+  fi
+}
 
 function update_flutter() {
   if [[ -e "$FLUTTER_DIR" && ! -d "$FLUTTER_DIR/.git" ]]; then
@@ -64,6 +109,8 @@ function update_flutter() {
 
   unset GIT_DIR
   unset GIT_WORK_TREE
+
+  apply_flutter_patches
 
   # Invalidate the flutter cache.
   local compilekey="$version:"

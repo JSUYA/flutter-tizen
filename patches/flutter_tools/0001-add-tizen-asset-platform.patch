@@ -1,0 +1,54 @@
+diff --git a/packages/flutter_tools/lib/src/asset.dart b/packages/flutter_tools/lib/src/asset.dart
+index 2f13da2ef01..1a44f2ef783 100644
+--- a/packages/flutter_tools/lib/src/asset.dart
++++ b/packages/flutter_tools/lib/src/asset.dart
+@@ -198,0 +199 @@ abstract class AssetBundle {
++    String? assetPlatform,
+@@ -329,0 +331 @@ class ManifestAssetBundle implements AssetBundle {
++    String? assetPlatform,
+@@ -389,0 +392 @@ class ManifestAssetBundle implements AssetBundle {
++      assetPlatform: assetPlatform,
+@@ -405,0 +409 @@ class ManifestAssetBundle implements AssetBundle {
++          assetPlatform: assetPlatform,
+@@ -484,0 +489 @@ class ManifestAssetBundle implements AssetBundle {
++          assetPlatform: assetPlatform,
+@@ -842,0 +848 @@ class ManifestAssetBundle implements AssetBundle {
++    String? assetPlatform,
+@@ -884 +890,2 @@ class ManifestAssetBundle implements AssetBundle {
+-            !asset.matchesFlavor(flavor) || !asset.matchesPlatform(targetPlatform),
++            !asset.matchesFlavor(flavor) ||
++            !asset.matchesPlatform(targetPlatform, assetPlatform: assetPlatform),
+@@ -1026,0 +1034 @@ class ManifestAssetBundle implements AssetBundle {
++    String? assetPlatform,
+@@ -1076 +1084 @@ class ManifestAssetBundle implements AssetBundle {
+-      if (!asset.matchesPlatform(targetPlatform)) {
++      if (!asset.matchesPlatform(targetPlatform, assetPlatform: assetPlatform)) {
+@@ -1081 +1089 @@ class ManifestAssetBundle implements AssetBundle {
+-          'Target platform: ${targetPlatform.osName}\n',
++          'Target platform: ${assetPlatform ?? targetPlatform.osName}\n',
+@@ -1507 +1515 @@ class _Asset {
+-  bool matchesPlatform(TargetPlatform targetPlatform) {
++  bool matchesPlatform(TargetPlatform targetPlatform, {String? assetPlatform}) {
+@@ -1512 +1520 @@ class _Asset {
+-    return platforms.contains(targetPlatform.osName);
++    return platforms.contains(assetPlatform ?? targetPlatform.osName);
+diff --git a/packages/flutter_tools/lib/src/build_system/targets/assets.dart b/packages/flutter_tools/lib/src/build_system/targets/assets.dart
+index f9ebbae2045..b8e6ae73357 100644
+--- a/packages/flutter_tools/lib/src/build_system/targets/assets.dart
++++ b/packages/flutter_tools/lib/src/build_system/targets/assets.dart
+@@ -39,0 +40 @@ Future<Depfile> copyAssets(
++  String? assetPlatform,
+@@ -57,0 +59 @@ Future<Depfile> copyAssets(
++    assetPlatform: assetPlatform,
+diff --git a/packages/flutter_tools/lib/src/flutter_manifest.dart b/packages/flutter_tools/lib/src/flutter_manifest.dart
+index a33f2ae3ca7..56bab017a3d 100644
+--- a/packages/flutter_tools/lib/src/flutter_manifest.dart
++++ b/packages/flutter_tools/lib/src/flutter_manifest.dart
+@@ -21,0 +22 @@ const _kValidPluginPlatforms = <String>{'android', 'ios', 'web', 'windows', 'lin
++const _kValidAssetPlatforms = <String>{..._kValidPluginPlatforms, 'tizen'};
+@@ -954 +955 @@ class AssetsEntry {
+-      final Set<String> invalidPlatforms = platforms.toSet().difference(_kValidPluginPlatforms);
++      final Set<String> invalidPlatforms = platforms.toSet().difference(_kValidAssetPlatforms);
+@@ -960 +961 @@ class AssetsEntry {
+-            'Invalid platform(s): "${invalidPlatforms.join(", ")}". Supported platforms are: "${_kValidPluginPlatforms.join(", ")}".',
++            'Invalid platform(s): "${invalidPlatforms.join(", ")}". Supported platforms are: "${_kValidAssetPlatforms.join(", ")}".',

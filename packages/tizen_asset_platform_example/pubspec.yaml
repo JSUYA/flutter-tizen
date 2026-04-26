@@ -1,0 +1,24 @@
+name: tizen_asset_platform_example
+description: Demonstrates Tizen-specific asset bundling with Flutter-Tizen.
+publish_to: "none"
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/common.txt
+    - path: assets/tizen_only.txt
+      platforms:
+        - tizen
+    - path: assets/android_only.txt
+      platforms:
+        - android
+    - path: assets/linux_only.txt
+      platforms:
+        - linux

@@ -20,6 +20,8 @@ SET flutter_dir=%ROOT_DIR%\flutter
 SET snapshot_path=%ROOT_DIR%\bin\cache\flutter-tizen.snapshot
 SET flutter_exe=%flutter_dir%\bin\flutter.bat
 SET dart_exe=%flutter_dir%\bin\cache\dart-sdk\bin\dart.exe
+SET flutter_patch_dir=%ROOT_DIR%\patches\flutter_tools
+SET flutter_patch_stamp_path=%flutter_dir%\bin\cache\flutter-tizen-patches.stamp
 
 SHIFT & CALL :%~1
 GOTO :EOF
@@ -62,6 +64,8 @@ GOTO :EOF
       )
     POPD
 
+    CALL :apply_flutter_patches || EXIT /B
+
     REM Invalidate the flutter cache.  
     SET compilekey="%version%:"
     SET stamp_path=%flutter_dir%\bin\cache\flutter_tools.stamp
@@ -73,6 +77,57 @@ GOTO :EOF
     :do_flutter_version
       CALL "%flutter_exe%" >NUL || EXIT /B
   ENDLOCAL  
+  EXIT /B
+
+:apply_flutter_patches
+  IF NOT EXIST "%flutter_patch_dir%" EXIT /B
+
+  SETLOCAL ENABLEDELAYEDEXPANSION
+    SET patch_revision=
+    FOR /F %%r IN ('git --git-dir="%ROOT_DIR%\.git" --work-tree="%ROOT_DIR%" rev-parse HEAD:patches/flutter_tools 2^>NUL') DO SET patch_revision=%%r
+    SET patch_state_changed=0
+    IF DEFINED patch_revision (
+      IF NOT EXIST "%flutter_patch_stamp_path%" (
+        SET patch_state_changed=1
+      ) ELSE (
+        SET /P patch_stamp=<"%flutter_patch_stamp_path%"
+        IF NOT "!patch_revision!"=="!patch_stamp!" (
+          SET patch_state_changed=1
+          PUSHD "%flutter_dir%"
+            git reset --hard || EXIT /B 1
+            SET /P flutter_version=<"%ROOT_DIR%\bin\internal\flutter.version"
+            git checkout "!flutter_version!" >NUL || EXIT /B 1
+          POPD
+        )
+      )
+    )
+
+    SET patch_applied=0
+    PUSHD "%flutter_dir%"
+      FOR %%p IN ("%flutter_patch_dir%\*.patch") DO (
+        IF EXIST "%%~fp" (
+          git apply --unidiff-zero --check "%%~fp" >NUL 2>NUL
+          IF !ERRORLEVEL! EQU 0 (
+            git apply --unidiff-zero --whitespace=nowarn "%%~fp" || EXIT /B 1
+            SET patch_applied=1
+          ) ELSE (
+            git apply --unidiff-zero --reverse --check "%%~fp" >NUL 2>NUL
+            IF !ERRORLEVEL! NEQ 0 (
+              ECHO Error: Failed to apply Flutter patch: %%~fp 1>&2
+              EXIT /B 1
+            )
+          )
+        )
+      )
+    POPD
+
+    IF "!patch_applied!"=="1" IF EXIST "%flutter_dir%\bin\cache\flutter_tools.stamp" DEL /F /Q "%flutter_dir%\bin\cache\flutter_tools.stamp"
+    IF "!patch_state_changed!"=="1" IF EXIST "%flutter_dir%\bin\cache\flutter_tools.stamp" DEL /F /Q "%flutter_dir%\bin\cache\flutter_tools.stamp"
+    IF DEFINED patch_revision (
+      IF NOT EXIST "%flutter_dir%\bin\cache" MKDIR "%flutter_dir%\bin\cache"
+      >"%flutter_patch_stamp_path%" ECHO !patch_revision!
+    )
+  ENDLOCAL
   EXIT /B
 
 :update_flutter_tizen
