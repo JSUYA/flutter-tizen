@@ -69,7 +69,7 @@ FlutterEngine::FlutterEngine(
 
 FlutterEngine::~FlutterEngine() {
   if (engine_alive_) {
-    *engine_alive_ = false;
+    engine_alive_->store(false);
   }
   if (owns_engine_) {
     Shutdown();
@@ -85,7 +85,7 @@ bool FlutterEngine::Run() {
 
 void FlutterEngine::Shutdown() {
   if (engine_alive_) {
-    *engine_alive_ = false;
+    engine_alive_->store(false);
   }
   if (engine_) {
     FlutterDesktopEngineShutdown(engine_);
@@ -145,8 +145,8 @@ namespace {
 struct AddViewContext {
   FlutterDesktopEngineRef engine;
   FlutterDesktopViewRef view;  // Lazily populated; may still be null when the
-                                // trampoline fires after a synchronous failure.
-  std::shared_ptr<bool> engine_alive;
+                               // trampoline fires after a synchronous failure.
+  std::shared_ptr<std::atomic_bool> engine_alive;
   FlutterEngine::AddViewCallback callback;
 };
 
@@ -180,8 +180,8 @@ bool FlutterEngine::AddView(const FlutterDesktopWindowProperties& properties,
   }
   auto* ctx =
       new AddViewContext{engine_, nullptr, engine_alive_, std::move(callback)};
-  FlutterDesktopViewRef view = FlutterDesktopEngineAddView(
-      engine_, properties, &AddViewTrampoline, ctx);
+  FlutterDesktopViewRef view =
+      FlutterDesktopEngineAddView(engine_, properties, &AddViewTrampoline, ctx);
   // |FlutterDesktopEngineAddView|'s contract is that it always invokes our
   // |AddViewTrampoline| (even on early/synchronous failure), which deletes
   // |ctx|. Do NOT delete |ctx| here: doing so was a double-free on the
@@ -189,6 +189,9 @@ bool FlutterEngine::AddView(const FlutterDesktopWindowProperties& properties,
   if (!view) {
     return false;
   }
+  // A non-null return means the embedder accepted the request and will invoke
+  // the trampoline asynchronously. Synchronous failures return null after
+  // invoking the trampoline, so |ctx| is still alive here.
   ctx->view = view;
   return true;
 }

@@ -9,7 +9,7 @@
 FlutterView::FlutterView(FlutterDesktopEngineRef engine,
                          FlutterDesktopViewRef view,
                          FlutterDesktopViewId view_id,
-                         std::shared_ptr<bool> engine_alive)
+                         std::shared_ptr<std::atomic_bool> engine_alive)
     : engine_(engine),
       view_(view),
       view_id_(view_id),
@@ -28,7 +28,7 @@ FlutterView::~FlutterView() {
   if (view_id_ == FLUTTER_DESKTOP_IMPLICIT_VIEW_ID) {
     return;
   }
-  if (engine_alive_ && !*engine_alive_) {
+  if (engine_alive_ && !engine_alive_->load()) {
     return;
   }
   FlutterDesktopEngineRemoveView(engine_, view_id_, nullptr, nullptr);

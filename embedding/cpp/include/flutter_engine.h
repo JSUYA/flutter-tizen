@@ -10,6 +10,7 @@
 #include <flutter_tizen.h>
 
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
@@ -134,7 +135,8 @@ class FlutterEngine : public flutter::PluginRegistry {
 
   // Shared lifetime flag used by FlutterView wrappers to avoid calling back
   // into a C engine handle after shutdown.
-  std::shared_ptr<bool> engine_alive_ = std::make_shared<bool>(true);
+  std::shared_ptr<std::atomic_bool> engine_alive_ =
+      std::make_shared<std::atomic_bool>(true);
 
   // The engine arguments instance.
   std::unique_ptr<FlutterEngineArguments> engine_arguments_;

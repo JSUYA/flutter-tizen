@@ -7,18 +7,15 @@ be added and removed at runtime through both C++ and Dart APIs.
 
 > **Status (2026-04):** platform-side infrastructure has landed (engine
 > registry, `FlutterEngineAddView`/`FlutterEngineRemoveView` wiring, shared
-> EGL display and share-group contexts, public C API, `flutter_tizen/multi_view`
-> platform channel, `FlutterView` C++ wrapper, `TizenMultiView` Dart helper).
+> EGL display and share-group contexts, per-view compositor backing stores,
+> public C API, `flutter_tizen/multi_view` platform channel, `FlutterView`
+> C++ wrapper, `TizenMultiView` Dart helper).
 >
-> **Secondary views do NOT render yet.** They are registered with the
-> Flutter framework so `PlatformDispatcher.views` reports them and pointer
-> events carry the correct `view_id`, but the Tizen renderer config still
-> sends every draw to the implicit view's surface. Calling
-> `runWidget(View(view: secondaryView))` will build a widget tree and
-> schedule frames, but no pixels reach the secondary window. Rendering
-> requires a `FlutterCompositor` with a `present_view_callback` and
-> per-view backing stores, which is tracked as a follow-up on top of this
-> foundation.
+> **Secondary views render through the embedder compositor.** They are
+> registered with the Flutter framework so `PlatformDispatcher.views` reports
+> them, pointer events carry the correct `view_id`, and
+> `runWidget(View(view: secondaryView))` can paint into the matching Tizen
+> secondary window.
 >
 > **Secondary views share the engine's platform channels.** Channels like
 > `flutter/textinput`, `flutter/platform`, `flutter/window`, and
@@ -138,8 +135,6 @@ Future<int> registerPip() async {
     topLevel: true,
   );
   // handle.viewId now appears in PlatformDispatcher.instance.views.
-  // WARNING: rendering a widget tree into this view is not supported
-  // yet; see the Status note at the top of this doc.
   return handle.viewId;
 }
 
@@ -148,10 +143,9 @@ Future<void> closePip(int viewId) async {
 }
 ```
 
-Once the FlutterCompositor follow-up lands, users will be able to pair
-`PlatformDispatcher.view(id:)` with `runWidget(View(view: ...))` to mount
-an independent widget tree inside each secondary window. The implicit
-view (id 0) continues to work with the usual `runApp`.
+Pair `PlatformDispatcher.view(id:)` with `runWidget(View(view: ...))` to mount
+an independent widget tree inside each secondary window. The implicit view
+(id 0) continues to work with the usual `runApp`.
 
 ## Manifest considerations
 
@@ -168,12 +162,11 @@ view (id 0) continues to work with the usual `runApp`.
 
 ## Known limitations
 
-- **Rendering of secondary views is not yet wired up.** The platform side
+- **Secondary views use compositor-backed EGL rendering.** The platform side
   registers every view with Flutter, input routing is per-view (via
   `FlutterPointerEvent.view_id`), and the `PlatformDispatcher.views`
-  collection reports every view correctly, but only the implicit view paints
-  to its surface today. The follow-up work adds a `FlutterCompositor` that
-  uses `present_view_callback` and creates one backing store per view.
+  collection reports every view correctly. Non-EGL renderer combinations may
+  need additional validation.
 - **Platform channels are shared across views.** `flutter/textinput`,
   `flutter/window`, `flutter/platform`, `flutter/mousecursor`, and
   `flutter/platform_views` are registered once at the engine level and

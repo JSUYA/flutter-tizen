@@ -7,6 +7,7 @@
 
 #include <flutter_tizen.h>
 
+#include <atomic>
 #include <memory>
 
 // Wrapper around a |FlutterDesktopViewRef|.
@@ -23,10 +24,9 @@ class FlutterView {
   // |FLUTTER_DESKTOP_IMPLICIT_VIEW_ID| the view is treated as borrowed and
   // the destructor does not attempt to remove it from the engine; removing
   // the implicit view requires shutting down the engine itself.
-  FlutterView(FlutterDesktopEngineRef engine,
-              FlutterDesktopViewRef view,
+  FlutterView(FlutterDesktopEngineRef engine, FlutterDesktopViewRef view,
               FlutterDesktopViewId view_id,
-              std::shared_ptr<bool> engine_alive = nullptr);
+              std::shared_ptr<std::atomic_bool> engine_alive = nullptr);
 
   ~FlutterView();
 
@@ -43,7 +43,7 @@ class FlutterView {
   FlutterDesktopEngineRef engine_ = nullptr;
   FlutterDesktopViewRef view_ = nullptr;
   FlutterDesktopViewId view_id_ = FLUTTER_DESKTOP_IMPLICIT_VIEW_ID;
-  std::shared_ptr<bool> engine_alive_;
+  std::shared_ptr<std::atomic_bool> engine_alive_;
 };
 
 #endif  // FLUTTER_TIZEN_EMBEDDING_CPP_INCLUDE_FLUTTER_VIEW_H_

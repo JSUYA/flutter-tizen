@@ -44,6 +44,42 @@ void main() {
     expect(calls.single.method, 'addView');
   });
 
+  test('addView rejects null or negative platform result', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
+      calls.add(call);
+      return null;
+    });
+    await expectLater(TizenMultiView.addView(), throwsA(isA<PlatformException>()));
+
+    calls.clear();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
+      calls.add(call);
+      return -1;
+    });
+    await expectLater(TizenMultiView.addView(), throwsA(isA<PlatformException>()));
+  });
+
+  test('addView rethrows platform errors', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
+      calls.add(call);
+      throw PlatformException(code: 'native-error');
+    });
+
+    await expectLater(
+      TizenMultiView.addView(),
+      throwsA(
+        isA<PlatformException>().having(
+          (PlatformException error) => error.code,
+          'code',
+          'native-error',
+        ),
+      ),
+    );
+  });
+
   test('removeView returns bool', () async {
     expect(await TizenMultiView.removeView(1), isTrue);
     expect(calls.single.method, 'removeView');
