@@ -451,6 +451,8 @@ class _StageViewChrome extends StatefulWidget {
 class _StageViewChromeState extends State<_StageViewChrome> {
   Rect? _dragStartGeometry;
   Offset? _dragStartGlobalPosition;
+  int? _dragPointer;
+  bool _dragMoved = false;
 
   bool get _enabled =>
       !widget.controller.busy &&
@@ -517,16 +519,13 @@ class _StageViewChromeState extends State<_StageViewChrome> {
                 cursor: _enabled
                     ? SystemMouseCursors.move
                     : SystemMouseCursors.basic,
-                child: GestureDetector(
+                child: Listener(
                   key: ValueKey<String>('drag-handle-${widget.spec.localId}'),
                   behavior: HitTestBehavior.opaque,
-                  onTap: _enabled
-                      ? () => widget.controller.select(widget.spec.localId)
-                      : null,
-                  onPanStart: _enabled ? _handlePanStart : null,
-                  onPanUpdate: _enabled ? _handlePanUpdate : null,
-                  onPanEnd: _enabled ? (_) => _finishDrag() : null,
-                  onPanCancel: _enabled ? _finishDrag : null,
+                  onPointerDown: _enabled ? _handlePointerDown : null,
+                  onPointerMove: _enabled ? _handlePointerMove : null,
+                  onPointerUp: _enabled ? _handlePointerUp : null,
+                  onPointerCancel: _enabled ? _handlePointerCancel : null,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 120),
                     decoration: BoxDecoration(
@@ -556,13 +555,25 @@ class _StageViewChromeState extends State<_StageViewChrome> {
     );
   }
 
-  void _handlePanStart(DragStartDetails details) {
+  void _handlePointerDown(PointerDownEvent event) {
+    if (_dragPointer != null) {
+      return;
+    }
+    _dragPointer = event.pointer;
+    _dragMoved = false;
     _dragStartGeometry = widget.spec.geometry;
-    _dragStartGlobalPosition = details.globalPosition;
+    _dragStartGlobalPosition = event.position;
     widget.controller.select(widget.spec.localId);
   }
 
-  void _handlePanUpdate(DragUpdateDetails details) {
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.pointer != _dragPointer) {
+      return;
+    }
+    if (event.buttons == 0) {
+      _finishDrag();
+      return;
+    }
     final Rect? startGeometry = _dragStartGeometry;
     final Offset? startGlobalPosition = _dragStartGlobalPosition;
     if (startGeometry == null ||
@@ -571,20 +582,41 @@ class _StageViewChromeState extends State<_StageViewChrome> {
       return;
     }
     final Offset stageDelta =
-        (details.globalPosition - startGlobalPosition) / widget.stageScale;
+        (event.position - startGlobalPosition) / widget.stageScale;
+    if (stageDelta.distance < 0.5) {
+      return;
+    }
+    _dragMoved = true;
     widget.controller.dragViewTo(
       widget.spec.localId,
       startGeometry.shift(stageDelta),
     );
   }
 
+  void _handlePointerUp(PointerUpEvent event) {
+    if (event.pointer == _dragPointer) {
+      _finishDrag();
+    }
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (event.pointer == _dragPointer) {
+      _finishDrag();
+    }
+  }
+
   void _finishDrag() {
     if (_dragStartGeometry == null) {
       return;
     }
+    final bool moved = _dragMoved;
     _dragStartGeometry = null;
     _dragStartGlobalPosition = null;
-    widget.controller.finishDrag(widget.spec.localId);
+    _dragPointer = null;
+    _dragMoved = false;
+    if (moved) {
+      widget.controller.finishDrag(widget.spec.localId);
+    }
   }
 }
 
