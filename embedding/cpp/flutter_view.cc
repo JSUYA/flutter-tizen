@@ -22,9 +22,9 @@ FlutterView::~FlutterView() {
   // The implicit view is torn down as part of engine shutdown so the
   // wrapper intentionally leaves it untouched. Secondary views must be
   // explicitly removed via the async C API so the Dart framework also
-  // observes the removal. The native view is kept alive by the C API until
-  // FlutterEngineRemoveView acknowledges removal, so this wrapper can fire
-  // and forget safely.
+  // observes the removal. The embedder keeps the native view alive until
+  // FlutterEngineRemoveView acknowledges removal, and drains acknowledged
+  // pending destruction during engine shutdown.
   if (view_id_ == FLUTTER_DESKTOP_IMPLICIT_VIEW_ID) {
     return;
   }

@@ -100,9 +100,8 @@ class FlutterEngine : public flutter::PluginRegistry {
   // the request could not be issued at all (engine not running, window
   // creation failed, etc.); |callback| is still invoked with |added| false.
   //
-  // NOTE: Until the multi-view compositor work lands, secondary views are
-  // registered with the framework (PlatformDispatcher.views reflects them)
-  // but their contents are not rendered.
+  // Secondary views render through the Tizen embedder compositor when the
+  // matching embedder-side multi-view support is present.
   bool AddView(const FlutterDesktopWindowProperties& properties,
                AddViewCallback callback = {});
 

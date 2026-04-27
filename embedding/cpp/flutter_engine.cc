@@ -7,6 +7,7 @@
 #include <flutter_tizen.h>
 
 #include <algorithm>
+#include <mutex>
 
 std::unique_ptr<FlutterEngine> FlutterEngine::Create(
     const std::string& dart_entrypoint,
@@ -136,32 +137,67 @@ FlutterDesktopEngineRef FlutterEngine::RelinquishEngine() {
 
 namespace {
 
-// Context passed through the C callback. Owns a heap copy of the user's
-// std::function so it can outlive |AddView|'s stack frame. The trampoline
-// below is the sole owner of this object and always deletes it; callers of
-// |FlutterDesktopEngineAddView| must not delete |ctx| themselves, even on
-// synchronous failure, because the C API guarantees the callback fires
-// exactly once.
+// Context passed through the C callback. It is completed only after both the C
+// call has returned and the embedder callback has fired, so a future
+// synchronous success callback cannot observe a missing view handle.
 struct AddViewContext {
-  FlutterDesktopEngineRef engine;
-  FlutterDesktopViewRef view;  // Lazily populated; may still be null when the
-                               // trampoline fires after a synchronous failure.
+  FlutterDesktopEngineRef engine = nullptr;
+  FlutterDesktopViewRef view = nullptr;
   std::shared_ptr<std::atomic_bool> engine_alive;
   FlutterEngine::AddViewCallback callback;
+  std::mutex mutex;
+  bool add_call_returned = false;
+  bool callback_fired = false;
+  bool dispatched = false;
+  bool added = false;
+  FlutterDesktopViewId view_id = FLUTTER_DESKTOP_INVALID_VIEW_ID;
 };
+
+using AddViewContextPtr = std::shared_ptr<AddViewContext>;
+
+void CompleteAddViewIfReady(const AddViewContextPtr& ctx) {
+  FlutterDesktopEngineRef engine = nullptr;
+  FlutterDesktopViewRef view_ref = nullptr;
+  std::shared_ptr<std::atomic_bool> engine_alive;
+  FlutterEngine::AddViewCallback callback;
+  bool added = false;
+  FlutterDesktopViewId view_id = FLUTTER_DESKTOP_INVALID_VIEW_ID;
+  {
+    std::lock_guard<std::mutex> lock(ctx->mutex);
+    if (!ctx->add_call_returned || !ctx->callback_fired || ctx->dispatched) {
+      return;
+    }
+    ctx->dispatched = true;
+    engine = ctx->engine;
+    view_ref = ctx->view;
+    engine_alive = ctx->engine_alive;
+    callback = std::move(ctx->callback);
+    added = ctx->added && (view_ref != nullptr);
+    view_id = ctx->view_id;
+  }
+
+  std::unique_ptr<FlutterView> view;
+  if (added) {
+    view =
+        std::make_unique<FlutterView>(engine, view_ref, view_id, engine_alive);
+  }
+  if (callback) {
+    callback(std::move(view), added);
+  }
+}
 
 void AddViewTrampoline(bool added, FlutterDesktopViewId view_id,
                        void* user_data) {
-  auto* ctx = static_cast<AddViewContext*>(user_data);
-  std::unique_ptr<FlutterView> view;
-  if (added && ctx->view) {
-    view = std::make_unique<FlutterView>(ctx->engine, ctx->view, view_id,
-                                         ctx->engine_alive);
+  std::unique_ptr<AddViewContextPtr> holder(
+      static_cast<AddViewContextPtr*>(user_data));
+  AddViewContextPtr ctx = *holder;
+  {
+    std::lock_guard<std::mutex> lock(ctx->mutex);
+    ctx->callback_fired = true;
+    ctx->added = added;
+    ctx->view_id = view_id;
   }
-  if (ctx->callback) {
-    ctx->callback(std::move(view), added);
-  }
-  delete ctx;
+  CompleteAddViewIfReady(ctx);
 }
 
 }  // namespace
@@ -178,22 +214,21 @@ bool FlutterEngine::AddView(const FlutterDesktopWindowProperties& properties,
     }
     return false;
   }
-  auto* ctx =
-      new AddViewContext{engine_, nullptr, engine_alive_, std::move(callback)};
-  FlutterDesktopViewRef view =
-      FlutterDesktopEngineAddView(engine_, properties, &AddViewTrampoline, ctx);
-  // |FlutterDesktopEngineAddView|'s contract is that it always invokes our
-  // |AddViewTrampoline| (even on early/synchronous failure), which deletes
-  // |ctx|. Do NOT delete |ctx| here: doing so was a double-free on the
-  // sync-failure path.
-  if (!view) {
-    return false;
+  auto ctx = std::make_shared<AddViewContext>();
+  ctx->engine = engine_;
+  ctx->engine_alive = engine_alive_;
+  ctx->callback = std::move(callback);
+  auto* callback_context = new AddViewContextPtr(ctx);
+  FlutterDesktopViewRef view = FlutterDesktopEngineAddView(
+      engine_, properties, &AddViewTrampoline, callback_context);
+  const bool issued = view != nullptr;
+  {
+    std::lock_guard<std::mutex> lock(ctx->mutex);
+    ctx->view = view;
+    ctx->add_call_returned = true;
   }
-  // A non-null return means the embedder accepted the request and will invoke
-  // the trampoline asynchronously. Synchronous failures return null after
-  // invoking the trampoline, so |ctx| is still alive here.
-  ctx->view = view;
-  return true;
+  CompleteAddViewIfReady(ctx);
+  return issued;
 }
 
 bool FlutterEngine::RemoveView(FlutterDesktopViewId view_id) {

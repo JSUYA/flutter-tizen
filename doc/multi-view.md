@@ -114,8 +114,10 @@ Notes:
   acknowledged the new view.
 - The returned `std::unique_ptr<FlutterView>` owns the view handle; keep it
   alive as long as the window should exist. Destroying it calls
-  `FlutterDesktopEngineRemoveView`, which is also async but fire-and-forget
-  at the C++ wrapper level.
+  `FlutterDesktopEngineRemoveView`, which is also async. The wrapper does not
+  expose the completion callback; the Tizen embedder keeps the native view
+  alive until removal is acknowledged and drains acknowledged pending
+  destruction during engine shutdown.
 - The implicit view is managed by `FlutterApp` itself and cannot be added or
   removed through this API.
 
