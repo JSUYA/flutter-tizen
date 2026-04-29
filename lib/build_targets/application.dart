@@ -161,6 +161,7 @@ abstract class TizenAssetBundle extends Target {
       environment,
       outputDirectory,
       targetPlatform: TargetPlatform.android,
+      assetPlatform: 'tizen',
       buildMode: buildMode,
       flavor: environment.defines[kFlavor],
       dartHookResult: dartHookResult,
