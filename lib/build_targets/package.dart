@@ -375,6 +375,9 @@ class NativeTpk extends TizenPackage {
       // The extra quotation marks ("") for linker flags are required due to
       // https://github.com/flutter-tizen/flutter-tizen/issues/218.
       '"-Wl,--unresolved-symbols=ignore-in-shared-libs"',
+      '"-Wl,--gc-sections"',
+      '-ffunction-sections',
+      '-fdata-sections',
       '-I${clientWrapperDir.childDirectory('include').path.toPosixPath()}',
       '-I${publicDir.path.toPosixPath()}',
       '-I${dartSdkDir.childDirectory('include').path.toPosixPath()}',

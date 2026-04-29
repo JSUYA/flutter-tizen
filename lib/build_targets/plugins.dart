@@ -130,10 +130,13 @@ class NativePlugins extends Target {
         ],
         extraOptions: <String>[
           if (!plugin.isSharedLib) '-fPIC',
+          '-ffunction-sections',
+          '-fdata-sections',
           '-I${clientWrapperDir.childDirectory('include').path.toPosixPath()}',
           '-I${publicDir.path.toPosixPath()}',
           '-I${dartSdkDir.childDirectory('include').path.toPosixPath()}',
           if (plugin.isSharedLib) ...<String>[
+            '-Wl,--gc-sections',
             '-l${getLibNameForFileName(embedder.basename)}',
             '-L${embedderDir.path.toPosixPath()}',
             embeddingLib.path.toPosixPath(),
@@ -249,6 +252,7 @@ USER_LIBS = stdc++ pthread ${userLibs.join(' ')}
         configuration: buildConfig,
         arch: getTizenCliArch(buildInfo.targetArch),
         extraOptions: <String>[
+          '-Wl,--gc-sections',
           '-I${clientWrapperDir.childDirectory('include').path.toPosixPath()}',
           '-I${publicDir.path.toPosixPath()}',
           embeddingLib.path.toPosixPath(),

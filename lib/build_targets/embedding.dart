@@ -110,7 +110,7 @@ class NativeEmbedding extends Target {
       predefines: <String>[
         '${buildInfo.deviceProfile.toUpperCase()}_PROFILE',
       ],
-      extraOptions: <String>['-fPIC'],
+      extraOptions: <String>['-fPIC', '-ffunction-sections', '-fdata-sections'],
       rootstrap: rootstrap.id,
     );
     if (result.exitCode != 0) {
