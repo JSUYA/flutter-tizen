@@ -19,6 +19,19 @@ import 'application.dart';
 import 'embedding.dart';
 import 'utils.dart';
 
+void _copyNuiEmbedderIfExists(File embedder, Directory libDir) {
+  final String embedderBasename = embedder.basename;
+  if (!embedderBasename.endsWith('.so')) {
+    return;
+  }
+
+  final File nuiEmbedder = embedder.parent
+      .childFile('${embedderBasename.substring(0, embedderBasename.length - 3)}_nui.so');
+  if (nuiEmbedder.existsSync()) {
+    nuiEmbedder.copySync(libDir.childFile(nuiEmbedder.basename).path);
+  }
+}
+
 /// This target doesn't specify any input or output but the build system always
 /// triggers [build] without skipping.
 /// This doesn't affect subsequent builds of [dependencies].
@@ -109,6 +122,7 @@ class DotnetTpk extends TizenPackage {
     // The embedder so name is statically defined in C# code and cannot be
     // provided at runtime, so the file name must be a constant.
     embedder.copySync(libDir.childFile('libflutter_tizen.so').path);
+    _copyNuiEmbedderIfExists(embedder, libDir);
     icuData.copySync(resDir.childFile(icuData.basename).path);
     appDepsJson
         .copySync(resDir.childDirectory('flutter_assets').childFile(appDepsJson.basename).path);
@@ -285,6 +299,7 @@ class NativeTpk extends TizenPackage {
 
     engineBinary.copySync(libDir.childFile(engineBinary.basename).path);
     embedder.copySync(libDir.childFile(embedder.basename).path);
+    _copyNuiEmbedderIfExists(embedder, libDir);
     icuData.copySync(resDir.childFile(icuData.basename).path);
     appDepsJson
         .copySync(resDir.childDirectory('flutter_assets').childFile(appDepsJson.basename).path);
@@ -500,6 +515,7 @@ class DotnetModule extends TizenPackage {
     // The embedder so name is statically defined in C# code and cannot be
     // provided at runtime, so the file name must be a constant.
     embedder.copySync(libDir.childFile('libflutter_tizen.so').path);
+    _copyNuiEmbedderIfExists(embedder, libDir);
     icuData.copySync(resDir.childFile(icuData.basename).path);
 
     if (buildMode.isPrecompiled) {
@@ -573,6 +589,7 @@ class NativeModule extends TizenPackage {
 
     engineBinary.copySync(libDir.childFile(engineBinary.basename).path);
     embedder.copySync(libDir.childFile(embedder.basename).path);
+    _copyNuiEmbedderIfExists(embedder, libDir);
     icuData.copySync(resDir.childFile(icuData.basename).path);
 
     if (buildMode.isPrecompiled) {

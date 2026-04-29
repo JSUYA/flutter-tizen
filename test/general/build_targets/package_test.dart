@@ -134,6 +134,7 @@ void main() {
       final Directory flutterAssetsDir = ephemeralDir.childDirectory('res/flutter_assets');
       final File engineBinary = ephemeralDir.childFile('lib/libflutter_engine.so');
       final File embedder = ephemeralDir.childFile('lib/libflutter_tizen.so');
+      final File nuiEmbedder = ephemeralDir.childFile('lib/libflutter_tizen_common_nui.so');
       final File icuData = ephemeralDir.childFile('res/icudtl.dat');
       final File appDepsJson = flutterAssetsDir.childFile('.app.deps.json');
       final File aotSnapshot = ephemeralDir.childFile('lib/libapp.so');
@@ -143,6 +144,7 @@ void main() {
       expect(flutterAssetsDir, exists);
       expect(engineBinary, exists);
       expect(embedder, exists);
+      expect(nuiEmbedder, exists);
       expect(icuData, exists);
       expect(appDepsJson, exists);
       expect(aotSnapshot, exists);
@@ -257,6 +259,7 @@ type = app
       final Directory flutterAssetsDir = ephemeralDir.childDirectory('res/flutter_assets');
       final File engineBinary = ephemeralDir.childFile('lib/libflutter_engine.so');
       final File embedder = ephemeralDir.childFile('lib/libflutter_tizen_common.so');
+      final File nuiEmbedder = ephemeralDir.childFile('lib/libflutter_tizen_common_nui.so');
       final File icuData = ephemeralDir.childFile('res/icudtl.dat');
       final File appDepsJson = flutterAssetsDir.childFile('.app.deps.json');
       final File aotSnapshot = ephemeralDir.childFile('lib/libapp.so');
@@ -266,6 +269,7 @@ type = app
       expect(flutterAssetsDir, exists);
       expect(engineBinary, exists);
       expect(embedder, exists);
+      expect(nuiEmbedder, exists);
       expect(icuData, exists);
       expect(appDepsJson, exists);
       expect(aotSnapshot, exists);
@@ -335,6 +339,7 @@ type = app
       final Directory flutterAssetsDir = outputDir.childDirectory('res/flutter_assets');
       final File engineBinary = outputDir.childFile('lib/libflutter_engine.so');
       final File embedder = outputDir.childFile('lib/libflutter_tizen.so');
+      final File nuiEmbedder = outputDir.childFile('lib/libflutter_tizen_common_nui.so');
       final File icuData = outputDir.childFile('res/icudtl.dat');
       final File aotSnapshot = outputDir.childFile('lib/libapp.so');
       final File generatedPluginRegistrant =
@@ -344,6 +349,7 @@ type = app
       expect(flutterAssetsDir, exists);
       expect(engineBinary, exists);
       expect(embedder, exists);
+      expect(nuiEmbedder, exists);
       expect(icuData, exists);
       expect(aotSnapshot, exists);
       expect(generatedPluginRegistrant, exists);
@@ -391,6 +397,7 @@ type = app
       final Directory flutterAssetsDir = outputDir.childDirectory('res/flutter_assets');
       final File engineBinary = outputDir.childFile('lib/libflutter_engine.so');
       final File embedder = outputDir.childFile('lib/libflutter_tizen_common.so');
+      final File nuiEmbedder = outputDir.childFile('lib/libflutter_tizen_common_nui.so');
       final File icuData = outputDir.childFile('res/icudtl.dat');
       final File aotSnapshot = outputDir.childFile('lib/libapp.so');
       final File generatedPluginRegistrant =
@@ -402,6 +409,7 @@ type = app
       expect(flutterAssetsDir, exists);
       expect(engineBinary, exists);
       expect(embedder, exists);
+      expect(nuiEmbedder, exists);
       expect(icuData, exists);
       expect(aotSnapshot, exists);
       expect(generatedPluginRegistrant, exists);
@@ -426,6 +434,7 @@ void _installFakeEngineArtifacts(Directory engineArtifactDir) {
   }
   for (final file in <String>[
     'tizen-arm/6.0/libflutter_tizen_common.so',
+    'tizen-arm/6.0/libflutter_tizen_common_nui.so',
     'tizen-arm-debug/icudtl.dat',
     'tizen-arm-debug/libflutter_engine.so',
     'tizen-arm-release/icudtl.dat',
