@@ -53,13 +53,19 @@ std::vector<std::string> FlutterEngineArguments::ParseEngineArgs() {
     }
   }
 
-  std::map<std::string, std::string> metadata = GetMetadata(app_id);
-
-  is_impeller_enabled_ = ProcessMetadataFlag(
-      engine_args, "--enable-impeller", kMetadataKeyEnableImepeller, metadata);
-  is_flutter_gpu_enabled_ =
-      ProcessMetadataFlag(engine_args, "--enable-flutter-gpu",
-                          kMetadataKeyEnableFlutterGpu, metadata);
+  app_info_h app_info = nullptr;
+  if (app_manager_get_app_info(app_id.c_str(), &app_info) ==
+      APP_MANAGER_ERROR_NONE) {
+    is_impeller_enabled_ =
+        ProcessMetadataFlag(engine_args, "--enable-impeller", app_info,
+                            kMetadataKeyEnableImepeller);
+    is_flutter_gpu_enabled_ =
+        ProcessMetadataFlag(engine_args, "--enable-flutter-gpu", app_info,
+                            kMetadataKeyEnableFlutterGpu);
+    app_info_destroy(app_info);
+  } else {
+    TizenLog::Error("Failed to retrieve app info.");
+  }
 
   for (const std::string& arg : engine_args) {
     TizenLog::Info("Enabled: %s", arg.c_str());
@@ -68,34 +74,9 @@ std::vector<std::string> FlutterEngineArguments::ParseEngineArgs() {
   return engine_args;
 }
 
-std::map<std::string, std::string> FlutterEngineArguments::GetMetadata(
-    const std::string& app_id) {
-  std::map<std::string, std::string> map;
-  app_info_h app_info;
-  int ret = app_manager_get_app_info(app_id.c_str(), &app_info);
-  if (ret != APP_MANAGER_ERROR_NONE) {
-    TizenLog::Error("Failed to retrieve app info.");
-    return map;
-  }
-
-  ret = app_info_foreach_metadata(
-      app_info,
-      [](const char* key, const char* value, void* user_data) -> bool {
-        auto* map = static_cast<std::map<std::string, std::string>*>(user_data);
-        map->insert(std::pair<std::string, std::string>(key, value));
-        return true;
-      },
-      &map);
-  if (ret != APP_MANAGER_ERROR_NONE) {
-    TizenLog::Error("Failed to get app metadata.");
-  }
-  return map;
-}
-
 bool FlutterEngineArguments::ProcessMetadataFlag(
     std::vector<std::string>& engine_args, const std::string& flag,
-    const std::string& metadata_key,
-    const std::map<std::string, std::string>& metadata) {
+    app_info_h app_info, const std::string& metadata_key) {
   bool enabled = false;
   auto flag_it = std::find(engine_args.begin(), engine_args.end(), flag);
   bool flag_exists = (flag_it != engine_args.end());
@@ -104,9 +85,12 @@ bool FlutterEngineArguments::ProcessMetadataFlag(
     enabled = true;
   }
 
-  auto metadata_it = metadata.find(metadata_key);
-  if (metadata_it != metadata.end()) {
-    bool metadata_enabled = (metadata_it->second == "true");
+  char* metadata_value = nullptr;
+  if (app_info_get_metadata(app_info, metadata_key.c_str(), &metadata_value) ==
+          APP_MANAGER_ERROR_NONE &&
+      metadata_value != nullptr) {
+    bool metadata_enabled = (std::string(metadata_value) == "true");
+    free(metadata_value);
 
     if (!flag_exists && metadata_enabled) {
       enabled = true;
