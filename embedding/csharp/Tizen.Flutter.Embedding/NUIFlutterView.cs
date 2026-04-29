@@ -37,6 +37,11 @@ namespace Tizen.Flutter.Embedding
         private FlutterDesktopView View { get; set; } = new FlutterDesktopView();
 
         /// <summary>
+        /// The native image queue backing this view.
+        /// </summary>
+        private NativeImageQueue _nativeImageQueue = null;
+
+        /// <summary>
         /// Whether the view is running.
         /// </summary>
         public bool IsRunning => !View.IsInvalid;
@@ -65,10 +70,10 @@ namespace Tizen.Flutter.Embedding
 
             Size2D size = GetDefaultSize();
 
-            var nativeImageQueue =
+            _nativeImageQueue =
                 new NativeImageQueue((uint)size.Width, (uint)size.Height, NativeImageQueue.ColorFormat.RGBA8888);
-            var nativeImageQueueRef = GetFieldValue<HandleRef>(nativeImageQueue, typeof(Disposable), "swigCPtr");
-            SetImage(nativeImageQueue.GenerateUrl().ToString());
+            var nativeImageQueueRef = GetFieldValue<HandleRef>(_nativeImageQueue, typeof(Disposable), "swigCPtr");
+            SetImage(_nativeImageQueue.GenerateUrl().ToString());
 
             var imageViewRef = GetFieldValue<HandleRef>(this, typeof(BaseHandle), "swigCPtr");
 
@@ -84,6 +89,7 @@ namespace Tizen.Flutter.Embedding
             if (View.IsInvalid)
             {
                 TizenLog.Error("Could not launch a Flutter view.");
+                DisposeNativeImageQueue();
                 return false;
             }
 
@@ -103,6 +109,16 @@ namespace Tizen.Flutter.Embedding
                 FlutterDesktopViewDestroy(View);
                 Engine = null;
                 View = new FlutterDesktopView();
+                DisposeNativeImageQueue();
+            }
+        }
+
+        private void DisposeNativeImageQueue()
+        {
+            if (_nativeImageQueue != null)
+            {
+                _nativeImageQueue.Dispose();
+                _nativeImageQueue = null;
             }
         }
 
