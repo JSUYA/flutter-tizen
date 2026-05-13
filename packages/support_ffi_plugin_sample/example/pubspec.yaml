@@ -1,0 +1,15 @@
+name: support_ffi_plugin_sample_example
+publish_to: "none"
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  support_ffi_plugin_sample:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
