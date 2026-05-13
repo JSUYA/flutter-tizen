@@ -24,7 +24,7 @@ class SampleApp extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text('registration: ${SupportFfiPluginSample.registrationStyle}'),
-              Text('pointer size: ${SupportFfiPluginSample.pointerSize} bytes'),
+              Text('libc getpid: ${SupportFfiPluginSample.processId}'),
             ],
           ),
         ),

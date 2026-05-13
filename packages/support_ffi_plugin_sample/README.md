@@ -3,8 +3,10 @@
 A minimal FFI-only Tizen plugin sample for flutter-tizen.
 
 The plugin declares `ffiPlugin: true` without `pluginClass` or
-`dartPluginClass`. This exercises flutter-tizen's plugin parser support for
-FFI-only Tizen plugins.
+`dartPluginClass`, then calls libc's `getpid()` through `dart:ffi`.
+This exercises flutter-tizen's plugin parser support for FFI-only Tizen
+plugins while keeping the native dependency to a system library that already
+exists on Tizen.
 
 To try the sample app:
 
