@@ -20,6 +20,7 @@ import '../src/test_flutter_command_runner.dart';
 enum PluginType {
   none,
   dart,
+  ffi,
   dotnet,
   native,
 }
@@ -70,6 +71,14 @@ flutter:
       tizen:
         dartPluginClass: ${snakeToCamel(package.name)}
         fileName: ${package.name}.dart
+''';
+    } else if (type == PluginType.ffi) {
+      platformsField = '''
+flutter:
+  plugin:
+    platforms:
+      tizen:
+        ffiPlugin: true
 ''';
     } else if (type == PluginType.dotnet) {
       platformsField = '''
@@ -267,6 +276,52 @@ class _PluginRegistrant {
   }
 }
 '''));
+  }, overrides: <Type, Generator>{
+    FileSystem: () => fileSystem,
+    ProcessManager: () => FakeProcessManager.any(),
+  }, testOn: 'posix');
+
+  testUsingContext('Supports ffi-only plugins without a Tizen registrant', () async {
+    fileSystem.file('tizen/tizen-manifest.xml').createSync(recursive: true);
+
+    await validatesComputeTransitiveDependencies(<Package>[
+      (
+        name: 'my_app',
+        pluginType: PluginType.none,
+        dependencies: <String>['some_ffi_plugin'],
+        devDependencies: <String>[],
+      ),
+      (
+        name: 'some_ffi_plugin',
+        pluginType: PluginType.ffi,
+        dependencies: <String>[],
+        devDependencies: <String>[],
+      ),
+    ]);
+    project = FlutterProject.fromDirectoryTest(fileSystem.currentDirectory);
+
+    final List<TizenPlugin> plugins = await findTizenPlugins(project);
+    expect(plugins, hasLength(1));
+    final TizenPlugin plugin = plugins.single;
+    expect(plugin.name, 'some_ffi_plugin');
+    expect(plugin.hasFfi(), isTrue);
+    expect(plugin.hasDart(), isFalse);
+    expect(plugin.hasMethodChannel(), isFalse);
+    expect(plugin.toMap()['ffiPlugin'], isTrue);
+    expect(await findTizenPlugins(project, dartOnly: true), isEmpty);
+    expect(await findTizenPlugins(project, cppOnly: true), isEmpty);
+    expect(await findTizenPlugins(project, dotnetOnly: true), isEmpty);
+
+    await injectTizenPlugins(project);
+
+    final File cppPluginRegistrant = fileSystem.file('tizen/flutter/generated_plugin_registrant.h');
+    expect(cppPluginRegistrant, exists);
+    expect(cppPluginRegistrant.readAsStringSync(),
+        isNot(contains('SomeFfiPluginRegisterWithRegistrar')));
+
+    final File appDepsJson = fileSystem.file('tizen/.app.deps.json');
+    expect(appDepsJson, exists);
+    expect(appDepsJson.readAsStringSync(), contains('"name": "some_ffi_plugin"'));
   }, overrides: <Type, Generator>{
     FileSystem: () => fileSystem,
     ProcessManager: () => FakeProcessManager.any(),

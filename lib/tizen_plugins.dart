@@ -64,8 +64,10 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
     this.pluginClass,
     this.dartPluginClass,
     this.fileName,
+    bool? ffiPlugin,
     required this.isDevDependency,
-  }) : assert(pluginClass != null || dartPluginClass != null);
+  })  : ffiPlugin = ffiPlugin ?? false,
+        assert(pluginClass != null || dartPluginClass != null || (ffiPlugin ?? false));
 
   static TizenPlugin fromYaml(
     String name,
@@ -81,12 +83,15 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
       pluginClass: yaml[kPluginClass] as String?,
       dartPluginClass: yaml[kDartPluginClass] as String?,
       fileName: yaml[kFileName] as String?,
+      ffiPlugin: yaml[kFfiPlugin] as bool? ?? false,
       isDevDependency: isDevDependency,
     );
   }
 
   static bool validate(YamlMap yaml) {
-    return yaml[kPluginClass] is String || yaml[kDartPluginClass] is String;
+    return yaml[kPluginClass] is String ||
+        yaml[kDartPluginClass] is String ||
+        yaml[kFfiPlugin] == true;
   }
 
   static const kConfigKey = 'tizen';
@@ -97,13 +102,14 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
   final String? pluginClass;
   final String? dartPluginClass;
   final String? fileName;
+  final bool ffiPlugin;
   final bool isDevDependency;
 
   @override
   bool hasMethodChannel() => pluginClass != null;
 
   @override
-  bool hasFfi() => hasDart();
+  bool hasFfi() => ffiPlugin;
 
   @override
   bool hasDart() => dartPluginClass != null;
@@ -119,6 +125,7 @@ class TizenPlugin extends PluginPlatform implements NativeOrDartPlugin {
       if (pluginClass != null) kPluginClass: pluginClass,
       if (dartPluginClass != null) kDartPluginClass: dartPluginClass,
       if (fileName != null) kFileName: fileName,
+      if (ffiPlugin) kFfiPlugin: true,
       if (fileName != null) kFilePath: directory.childFile(fileName!).path,
       if (libName != null) kLibName: isSharedLib ? libName : 'flutter_plugins',
     };
