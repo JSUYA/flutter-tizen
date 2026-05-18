@@ -1,0 +1,15 @@
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/bin/Debug/tizen80/Runner.deps.json
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/bin/Debug/tizen80/Runner.dll
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/bin/Debug/tizen80/Runner.pdb
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/bin/Debug/tizen80/Tizen.Flutter.Embedding.dll
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/bin/Debug/tizen80/Tizen.Flutter.Embedding.pdb
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/bin/Debug/tizen80/Tizen.Flutter.Embedding.xml
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.csproj.AssemblyReference.cache
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.GeneratedMSBuildEditorConfig.editorconfig
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.AssemblyInfoInputs.cache
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.AssemblyInfo.cs
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.csproj.CoreCompileInputs.cache
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.sourcelink.json
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.csproj.Up2Date
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.dll
+/home/junsu/dev/os/f-project/flutter-tizen/packages/native_asset_example/tizen/obj/Debug/tizen80/Runner.pdb

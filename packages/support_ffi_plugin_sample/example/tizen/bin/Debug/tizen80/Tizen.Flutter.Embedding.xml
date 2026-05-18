@@ -1,0 +1,923 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Tizen.Flutter.Embedding</name>
+    </assembly>
+    <members>
+        <member name="T:Tizen.Flutter.Embedding.BasicMessageChannel`1">
+            <summary>
+            A named channel for communicating with the Flutter application using asynchronous message passing.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.BasicMessageChannel`1.#ctor(System.String,Tizen.Flutter.Embedding.IMessageCodec{`0},Tizen.Flutter.Embedding.IBinaryMessenger)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Tizen.Flutter.Embedding.BasicMessageChannel`1"/> class.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.BasicMessageChannel`1.#ctor(System.String,Tizen.Flutter.Embedding.IMessageCodec{`0})">
+            <summary>
+            Initializes a new instance of the <see cref="T:Tizen.Flutter.Embedding.BasicMessageChannel`1"/> class.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.BasicMessageChannel`1.Name">
+            <summary>
+            The logical channel on which communication happens, not null
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.BasicMessageChannel`1.Codec">
+            <summary>
+            The message codec used by this channel, not null
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.BasicMessageChannel`1.BinaryMessenger">
+            <summary>
+            The messenger which sends the bytes for this channel, not null
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.BasicMessageChannel`1.Send(`0)">
+            <summary>
+            Sends the specified message to the Flutter application on this channel.
+            </summary>
+            <param name="message">The message to send.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.BasicMessageChannel`1.SendAsync(`0)">
+            <summary>
+            Sends the specified message to the Flutter application on this channel asynchronously.
+            </summary>
+            <param name="message">The message to send.</param>
+            <returns>A task that completes with the response message.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.BasicMessageChannel`1.SetMessageHandler(System.Func{`0,System.Threading.Tasks.Task{`0}})">
+            <summary>
+            Sets a callback for receiving messages from the Flutter application on this channel.
+            </summary>
+            <remarks>
+            The given callback will replace the currently registered callback for this channel, if any.
+            To remove the handler, pass null as the handler argument.
+            </remarks>
+            <param name="handler">The callback to invoke when a message is received.</param>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.BinaryCodec">
+            <summary>
+            <see cref="T:Tizen.Flutter.Embedding.IMessageCodec`1"/> with unencoded binary messages.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.BinaryCodec.EncodeMessage(System.Byte[])">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.BinaryCodec.DecodeMessage(System.Byte[])">
+            <InheritDoc/>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.EventChannel">
+            <summary>
+            A named channel for communicating with the Flutter application using asynchronous event streams.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.EventChannel.#ctor(System.String)">
+            <summary>
+            Creates a new channel associated with the specified name and with the standard <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>
+            and the default <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.
+            </summary>
+            <param name="name">A channel name string.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.EventChannel.#ctor(System.String,Tizen.Flutter.Embedding.IMethodCodec)">
+            <summary>
+            Creates a new channel associated with the specified name and with the specified <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>
+            and the default <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.
+            </summary>
+            <param name="name">A channel name string.</param>
+            <param name="codec">A <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.EventChannel.#ctor(System.String,Tizen.Flutter.Embedding.IMethodCodec,Tizen.Flutter.Embedding.IBinaryMessenger)">
+            <summary>
+            Creates a new channel associated with the specified name and with the specified <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>
+            and the specified <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.
+            </summary>
+            <param name="name">A channel name string.</param>
+            <param name="codec">A <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>.</param>
+            <param name="messenger">A <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.</param>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.EventChannel.Name">
+            <summary>
+            The logical channel on which communication happens, not null.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.EventChannel.Codec">
+            <summary>
+            The method codec used by this channel, not null.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.EventChannel.BinaryMessenger">
+            <summary>
+            The messenger used by this channel to send messages.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.EventChannel.SetStreamHandler(Tizen.Flutter.Embedding.IEventStreamHandler)">
+            <summary>
+            Registers a stream handler on this channel.
+            </summary>
+            <param name="handler">A <see cref="T:Tizen.Flutter.Embedding.IEventStreamHandler"/>, or null to deregister.</param>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.EventStreamHandler">
+            <summary>
+            Handler of stream setup and teardown requests.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.EventStreamHandler.#ctor(System.Action{System.Object,Tizen.Flutter.Embedding.IEventSink},System.Action{System.Object})">
+            <summary>
+            Creates an <see cref="T:Tizen.Flutter.Embedding.IEventStreamHandler"/> with callbacks.
+            </summary>
+            <param name="onListen">A callback to set up an event stream.</param>
+            <param name="onCancel">A callback to tear down the most recently created event stream.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.EventStreamHandler.OnListen(System.Object,Tizen.Flutter.Embedding.IEventSink)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.EventStreamHandler.OnCancel(System.Object)">
+            <InheritDoc/>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.BinaryMessageHandler">
+            <summary>
+            A function which takes a platform message and asynchronously returns an encoded response.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IBinaryMessenger">
+            <summary>
+            A messenger which sends binary data across the Flutter barrier.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IBinaryMessenger.Send(System.String,System.Byte[])">
+            <summary>
+            Sends a binary message to the Flutter application on the given channel.
+            </summary>
+            <param name="channel">The channel to send the message to.</param>
+            <param name="message">The message to send.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IBinaryMessenger.SendAsync(System.String,System.Byte[])">
+            <summary>
+            Sends a binary message to the Flutter application on the given channel asynchronously.
+            </summary>
+            <param name="channel">The channel to send the message to.</param>
+            <param name="message">The message to send.</param>
+            <returns>A task which completes with the response from the Flutter.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IBinaryMessenger.SetMessageHandler(System.String,Tizen.Flutter.Embedding.BinaryMessageHandler)">
+            <summary>
+            Sets a callback for receiving messages from the Flutter application on the given channel,
+            without decoding them.
+            </summary>
+            <param name="channel">The channel to listen on.</param>
+            <param name="handler">The callback to invoke when a message is received.</param>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IEventSink">
+            <summary>
+            Event callback.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IEventSink.Success(System.Object)">
+            <summary>
+            Consumes a successful event.
+            </summary>
+            <param name="event">The event, possibly null.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IEventSink.Error(System.String,System.String,System.Object)">
+            <summary>
+            Consumes an error event.
+            </summary>
+            <param name="code">An error code string.</param>
+            <param name="message">A human-readable error message string, possibly null.</param>
+            <param name="details">Error details, possibly null.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IEventSink.EndOfStream">
+            <summary>
+            Consumes end of stream. 
+            <para>Ensuing calls to <see cref="M:Tizen.Flutter.Embedding.IEventSink.Success(System.Object)"/> or <see cref="M:Tizen.Flutter.Embedding.IEventSink.Error(System.String,System.String,System.Object)"/>,
+            if any, are ignored.</para>
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IEventStreamHandler">
+            <summary>
+            Handler of stream setup and teardown requests.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IEventStreamHandler.OnListen(System.Object,Tizen.Flutter.Embedding.IEventSink)">
+            <summary>
+            Handles a request to set up an event stream.
+            </summary>
+            <param name="arguments">Stream configuration arguments, possibly null.</param>
+            <param name="events">An <see cref="T:Tizen.Flutter.Embedding.IEventSink"/> for emitting events to the Flutter receiver.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IEventStreamHandler.OnCancel(System.Object)">
+            <summary>
+            Handles a request to tear down the most recently created event stream.
+            </summary>
+            <param name="arguments">Stream configuration arguments, possibly null.</param>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IMessageCodec`1">
+            <summary>
+            A message encoding/decoding mechanism.
+            <para>Both operations throw an exception, if conversion fails. Such situations should be treated
+            as programming errors.</para>
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMessageCodec`1.EncodeMessage(`0)">
+            <summary>
+            Encodes the specified message into binary.
+            </summary>
+            <param name="message">The message to encode.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMessageCodec`1.DecodeMessage(System.Byte[])">
+            <summary>
+            Decodes the specified message from binary.
+            </summary>
+            <param name="message">The message to decode.</param>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IMethodCodec">
+            <summary>
+            A codec for method calls and enveloped results.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMethodCodec.EncodeMethodCall(Tizen.Flutter.Embedding.MethodCall)">
+            <summary>
+            Encodes a message call into binary.
+            </summary>
+            <param name="methodCall">A <see cref="T:Tizen.Flutter.Embedding.MethodCall"/></param>
+            <returns>A byte array containing the encoding.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMethodCodec.DecodeMethodCall(System.Byte[])">
+            <summary>
+            Decodes a message call from binary.
+            </summary>
+            <param name="methodCall">The binary encoding of the method call as a byte array.</param>
+            <returns>A <see cref="T:Tizen.Flutter.Embedding.MethodCall"/> representation of the bytes.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMethodCodec.EncodeSuccessEnvelope(System.Object)">
+            <summary>
+            Encodes a successful result into a binary envelope message.
+            </summary>
+            <param name="result">The result value, possibly null.</param>
+            <returns>A byte array containing the encoding.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMethodCodec.EncodeErrorEnvelope(System.String,System.String,System.Object)">
+            <summary>
+            Encodes an error result into a binary envelope message.
+            </summary>
+            <param name="errorCode">An error code string.</param>
+            <param name="errorMessage">An error message String, possibly null.</param>
+            <param name="errorDetails">Error details, possibly null. Consider supporting <see cref="T:System.Exception"/>
+            in your codec. This is the most common value passed to this field.</param>
+            <returns>A byte array containing the encoding.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMethodCodec.EncodeErrorEnvelope(System.String,System.String,System.Object,System.String)">
+            <summary>
+            Encodes an error result into a binary envelope message.
+            </summary>
+            <param name="errorCode">An error code string.</param>
+            <param name="errorMessage">An error message String, possibly null.</param>
+            <param name="errorDetails">Error details, possibly null. Consider supporting <see cref="T:System.Exception"/>
+            in your codec. This is the most common value passed to this field.</param>
+            <param name="errorStacktrace">Platform stacktrace for the error. possibly null.</param>
+            <returns>A byte array containing the encoding.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IMethodCodec.DecodeEnvelope(System.Byte[])">
+            <summary>
+            Decodes a result envelope from binary.
+            </summary>
+            <param name="envelope">The binary encoding of a result envelope as a byte array.</param>
+            <returns>The enveloped result Object.</returns>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.MethodCall">
+            <summary>
+            Command object representing a method call on a <see cref="T:Tizen.Flutter.Embedding.MethodChannel"/>.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodCall.#ctor(System.String,System.Object)">
+            <summary>
+            Creates a <see cref="T:Tizen.Flutter.Embedding.MethodCall"/> with the specified method name and arguments.
+            </summary>
+            <param name="method">The method name String, not null.</param>
+            <param name="arguments">The arguments, a value supported by the channel's message codec.</param>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.MethodCall.Method">
+            <summary>
+            The name of the called method.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.MethodCall.Arguments">
+            <summary>
+            Arguments for the call.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.MethodChannel">
+            <summary>
+            A named channel for communicating with the Flutter application using asynchronous method calls.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.#ctor(System.String)">
+            <summary>
+            Creates a new channel associated with the specified name and the standard <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>
+            and the default <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.
+            </summary>
+            <param name="name">A channel name string.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.#ctor(System.String,Tizen.Flutter.Embedding.IMethodCodec)">
+            <summary>
+            Creates a new channel associated with the specified name and the specified <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>
+            and the default <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.
+            </summary>
+            <param name="name">A channel name string.</param>
+            <param name="codec">A <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.#ctor(System.String,Tizen.Flutter.Embedding.IMethodCodec,Tizen.Flutter.Embedding.IBinaryMessenger)">
+            <summary>
+            Creates a new channel associated with the specified name and the specified <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>
+            and the specified <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.
+            </summary>
+            <param name="name">A channel name string.</param>
+            <param name="codec">A <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/>.</param>
+            <param name="messenger">A <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/>.</param>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.MethodChannel.Name">
+            <summary>
+            The logical channel on which communication happens, not null.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.MethodChannel.Codec">
+            <summary>
+            The method codec used by this channel, not null.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.MethodChannel.BinaryMessenger">
+            <summary>
+            The messenger used by this channel to send messages.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.InvokeMethod(System.String,System.Object)">
+            <summary>
+            Invokes a method on this channel, expecting no result.
+            </summary>
+            <param name="method">The name string of the method.</param>
+            <param name="arguments">The arguments for the invocation, possibly null.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.InvokeMethod(Tizen.Flutter.Embedding.MethodCall)">
+            <summary>
+            Invokes a method on this channel, expecting no result.
+            </summary>
+            <param name="call">A <see cref="T:Tizen.Flutter.Embedding.MethodCall"/>.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.InvokeMethodAsync(System.String,System.Object)">
+            <summary>
+            Invokes a method on this channel, expecting a result.
+            </summary>
+            <remarks>
+            A <see cref="T:Tizen.Flutter.Embedding.FlutterException"/> is thrown, if the invocation failed in the Flutter application.
+            </remarks>
+            <param name="method">The name string of the method.</param>
+            <param name="arguments">The arguments for the invocation, possibly null.</param>
+            <returns>A <see cref="T:System.Threading.Tasks.Task"/> that completes with a result.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.InvokeMethodAsync(Tizen.Flutter.Embedding.MethodCall)">
+            <summary>
+            Invokes a method on this channel, expecting a result.
+            </summary>
+            <remarks>
+            A <see cref="T:Tizen.Flutter.Embedding.FlutterException"/> is thrown, if the invocation failed in the Flutter application.
+            </remarks>
+            <param name="call">A <see cref="T:Tizen.Flutter.Embedding.MethodCall"/>.</param>
+            <returns>A <see cref="T:System.Threading.Tasks.Task"/> that completes with a result.</returns>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.SetMethodCallHandler(System.Func{Tizen.Flutter.Embedding.MethodCall,System.Threading.Tasks.Task{System.Object}})">
+            <summary>
+            Registers a method call handler on this channel.
+            </summary>
+            <param name="handler">An asynchronous callback function to handle the <see cref="T:Tizen.Flutter.Embedding.MethodCall"/>.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.SetMethodCallHandler(System.Func{Tizen.Flutter.Embedding.MethodCall,System.Object})">
+            <summary>
+            Registers a method call handler on this channel.
+            </summary>
+            <param name="handler">A callback function to handle the <see cref="T:Tizen.Flutter.Embedding.MethodCall"/>.</param>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MethodChannel.UnsetMethodCallHandler">
+            <summary>
+            De-registers the method call handler on this channel.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.StandardMessageCodec">
+            <summary>
+            <see cref="T:Tizen.Flutter.Embedding.IMessageCodec`1"/> using the Flutter standard binary encoding.
+            <para>
+            This codec is guaranteed to be compatible with the corresponding
+            <see href="https://api.flutter.dev/flutter/services/StandardMessageCodec-class.html">StandardMessageCodec</see>
+            on the Dart side. These parts of the Flutter SDK are evolved synchronously.
+            </para>
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.StandardMessageCodec.Instance">
+            <summary>
+            Singleton instance of <see cref="T:Tizen.Flutter.Embedding.StandardMessageCodec"/>.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMessageCodec.EncodeMessage(System.Object)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMessageCodec.DecodeMessage(System.Byte[])">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMessageCodec.WriteValue(System.IO.BinaryWriter,System.Object)">
+            <summary>
+            Writes a value.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMessageCodec.ReadValue(System.IO.BinaryReader)">
+            <summary>
+            Reads a value.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.StandardMethodCodec">
+            <summary>
+            <see cref="T:Tizen.Flutter.Embedding.IMethodCodec"/> using the Flutter standard binary encoding.
+            <para>
+            This codec is guaranteed to be compatible with the corresponding
+            <see href = "https://api.flutter.dev/flutter/services/StandardMethodCodec-class.html">StandardMethodCodec</see>
+            on the Dart side. These parts of the Flutter SDK are evolved synchronously.
+            </para>
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMethodCodec.#ctor(Tizen.Flutter.Embedding.StandardMessageCodec)">
+            <summary>
+            Creates a new method codec based on the specified message codec.
+            </summary>
+            <param name="messageCodec">A specified message codec.</param>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.StandardMethodCodec.Instance">
+            <summary>
+            A singleton <see cref="T:Tizen.Flutter.Embedding.StandardMethodCodec"/> instance created with the <see cref="T:Tizen.Flutter.Embedding.StandardMessageCodec"/>.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.StandardMethodCodec.MessageCodec">
+            <summary>
+            A <see cref="T:Tizen.Flutter.Embedding.StandardMessageCodec"/>.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMethodCodec.EncodeMethodCall(Tizen.Flutter.Embedding.MethodCall)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMethodCodec.DecodeMethodCall(System.Byte[])">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMethodCodec.EncodeSuccessEnvelope(System.Object)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMethodCodec.EncodeErrorEnvelope(System.String,System.String,System.Object)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMethodCodec.EncodeErrorEnvelope(System.String,System.String,System.Object,System.String)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StandardMethodCodec.DecodeEnvelope(System.Byte[])">
+            <InheritDoc/>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.StringCodec">
+            <summary>
+            <see cref="T:Tizen.Flutter.Embedding.IMessageCodec`1"/> for UTF-8 encoded String messages.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StringCodec.EncodeMessage(System.String)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StringCodec.DecodeMessage(System.Byte[])">
+            <InheritDoc/>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.StringArray">
+            <summary>
+            Re-allocates a collection of managed strings for unmanaged access.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.StringArray.Length">
+            <summary>
+            The length of the array. Returns -1 if invalid.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.StringArray.Handle">
+            <summary>
+            The address of the underlying native array.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.StringArray.Dispose">
+            <InheritDoc/>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.FlutterRendererType">
+            <summary>
+            Enumeration for the renderer type of the engine.
+            </summary>
+        </member>
+        <member name="F:Tizen.Flutter.Embedding.FlutterRendererType.EGL">
+            <summary>
+            The renderer based on EGL.
+            </summary>
+        </member>
+        <member name="F:Tizen.Flutter.Embedding.FlutterRendererType.EVulkan">
+            <summary>
+            The renderer based on Vulkan.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.FlutterApplication">
+            <summary>
+            The app base class for headed Flutter execution.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.DartEntrypoint">
+            <summary>
+            The optional entrypoint in the Dart project. Defaults to main() if the value is empty.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.IsRunning">
+            <summary>
+            Whether the app has started.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.Engine">
+            <summary>
+            The Flutter engine instance.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.View">
+            <summary>
+            The Flutter view instance handle.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.WindowOffsetX">
+            <summary>
+            The x-coordinate of the top left corner of the window.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.WindowOffsetY">
+            <summary>
+            The y-coordinate of the top left corner of the window.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.WindowWidth">
+            <summary>
+            The width of the window. Defaults to the screen width if the value is zero.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.WindowHeight">
+            <summary>
+            The height of the window. Defaults to the screen height if the value is zero.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.IsWindowTransparent">
+            <summary>
+            Whether the window should have a transparent background or not.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.IsWindowFocusable">
+            <summary>
+            Whether the window should be focusable or not.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.IsTopLevel">
+            <summary>
+            Whether the app should be displayed over other apps.
+            If true, the "http://tizen.org/privilege/window.priority.set" privilege must be added to tizen-manifest.xml
+            file.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.IsPointingDeviceSupport">
+            <summary>
+            Whether the app should support pointing devices (mouse).
+            If false, pointing device input will not work and and the D-PAD will show with the floating menu.
+            If true and IsFloatingMenuSupport is false, pointing device input will not work.
+            
+            It only works on TV.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.IsFloatingMenuSupport">
+            <summary>
+            Whether the app should support floating menus.
+            If false, pointing device input will not work and the floating menu will not be displayed.
+            If false and IsPointingDeviceSupport is true, pointing device input will not work.
+            
+            It only works on TV.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.RendererType">
+            <summary>
+            The renderer type of the engine. Defaults to EGL.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterApplication.UserPixelRatio">
+            <summary>
+            The user-defined pixel ratio. Defaults to the device pixel ratio if the value is 0.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.Run(System.String[])">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.GetRegistrarForPlugin(System.String)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnCreate">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnResume">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnPause">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnTerminate">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnAppControlReceived(Tizen.Applications.AppControlReceivedEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnLowMemory(Tizen.Applications.LowMemoryEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnLocaleChanged(Tizen.Applications.LocaleChangedEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterApplication.OnRegionFormatChanged(Tizen.Applications.RegionFormatChangedEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.FlutterEngine">
+            <summary>
+            The engine for Flutter execution.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.#ctor(System.String,System.Collections.Generic.List{System.String})">
+            <summary>
+            Creates a <see cref="T:Tizen.Flutter.Embedding.FlutterEngine"/> with an optional entrypoint name and entrypoint arguments.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.#ctor(System.String,System.String,System.String,System.String,System.Collections.Generic.List{System.String})">
+            <summary>
+            Creates a <see cref="T:Tizen.Flutter.Embedding.FlutterEngine"/> with the given arguments.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterEngine.IsValid">
+            <summary>
+            Whether the engine is valid or not.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterEngine.Arguments">
+            <summary>
+            The engine arguments instance containing parsed arguments and metadata flags.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterEngine.Engine">
+            <summary>
+            Handle for interacting with the C API's engine reference.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.Run">
+            <summary>
+            Starts running the engine.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.Shutdown">
+            <summary>
+            Terminates the running engine.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.NotifyAppIsResumed">
+            <summary>
+            Notifies that the host app is visible and responding to user input.
+            This method notifies the running Flutter app that it is "resumed" as per the Flutter app lifecycle.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.NotifyAppIsPaused">
+            <summary>
+            Notifies that the host app is invisible and not responding to user input.
+            This method notifies the running Flutter app that it is "inactive" as per the Flutter app lifecycle.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.NotifyAppIsDetached">
+            <summary>
+            Notifies that the engine is detached from any host views.
+            This method notifies the running Flutter app that it is "detached" as per the Flutter app lifecycle.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.NotifyAppControl(Tizen.Applications.ReceivedAppControl)">
+            <summary>
+            Notifies that the host app received an app control.
+            This method notifies the running Flutter app that it is "paused" as per the Flutter app lifecycle.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.NotifyLowMemoryWarning">
+            <summary>
+            Notifies that a low memory warning has been received.
+            This method sends a "memory pressure warning" message to Flutter over the "system" channel.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.NotifyLocaleChange">
+            <summary>
+            Notifies that the system locale has changed.
+            This method sends a "locale change" message to Flutter.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.GetRegistrarForPlugin(System.String)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngine.GetMessenger">
+            <summary>
+            Returns the messenger associated with the engine.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.FlutterEngineArguments">
+            <summary>
+            Handles parsing and management of Flutter engine arguments.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterEngineArguments.Arguments">
+            <summary>
+            Gets the list of parsed engine arguments.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterEngineArguments.IsImpellerEnabled">
+            <summary>
+            Gets whether the impeller is enabled or not.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterEngineArguments.IsFlutterGpuEnabled">
+            <summary>
+            Gets whether the flutter gpu is enabled or not.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterEngineArguments.IsFlutterTizenExperimentalEnabled">
+            <summary>
+            Gets whether the flutter tizen experimental is enabled or not.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngineArguments.#ctor">
+            <summary>
+            Creates a <see cref="T:Tizen.Flutter.Embedding.FlutterEngineArguments"/> instance and parses engine arguments.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngineArguments.ParseEngineArgs">
+            <summary>
+            Reads engine arguments passed from the flutter-tizen tool.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterEngineArguments.ProcessMetadataFlag(System.Collections.Generic.List{System.String},System.String,System.String)">
+            <summary>
+            Processes a metadata flag by checking both engine arguments and application metadata.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.FlutterException">
+            <summary>
+            Thrown to indicate that a Flutter method invocation failed on the Flutter side.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterException.#ctor(System.String,System.String,System.Object)">
+            <summary>
+            Creates a <see cref="T:Tizen.Flutter.Embedding.FlutterException"/> with the given properties.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterException.Code">
+            <summary>
+            The error code.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterException.Details">
+            <summary>
+            The error details.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.FlutterServiceApplication">
+            <summary>
+            The app base class for headless Flutter execution.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterServiceApplication.DartEntrypoint">
+            <summary>
+            The optional entrypoint in the Dart project. Defaults to main() if the value is empty.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterServiceApplication.IsRunning">
+            <summary>
+            Whether the app has started.
+            </summary>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.FlutterServiceApplication.Engine">
+            <summary>
+            The Flutter engine instance.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.Run(System.String[])">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.GetRegistrarForPlugin(System.String)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.OnCreate">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.OnTerminate">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.OnAppControlReceived(Tizen.Applications.AppControlReceivedEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.OnLowMemory(Tizen.Applications.LowMemoryEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.OnLocaleChanged(Tizen.Applications.LocaleChangedEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.FlutterServiceApplication.OnRegionFormatChanged(Tizen.Applications.RegionFormatChangedEventArgs)">
+            <InheritDoc/>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.MissingPluginException">
+            <summary>
+            Thrown to indicate that a platform interaction failed to find a handling plugin.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MissingPluginException.#ctor">
+            <summary>
+            Creates a <see cref="T:Tizen.Flutter.Embedding.MissingPluginException"/>.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.MissingPluginException.#ctor(System.String)">
+            <summary>
+            Creates a <see cref="T:Tizen.Flutter.Embedding.MissingPluginException"/> with a specified error message.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.DotnetPluginRegistry">
+            <summary>
+            A registry for dotnet plugins implementing the <see cref="T:Tizen.Flutter.Embedding.IFlutterPlugin"/> interface.
+            </summary>
+            <remarks>
+            When a plugin is registered, the <see cref="M:Tizen.Flutter.Embedding.IFlutterPlugin.OnAttachedToEngine(Tizen.Flutter.Embedding.IFlutterPluginBinding)"/> method is called.
+            The registered plugin is automatically unregistered with the <see cref="M:Tizen.Flutter.Embedding.IFlutterPlugin.OnDetachedFromEngine"/>
+            method call when the Flutter engine is detached.
+            </remarks>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.DotnetPluginRegistry.Instance">
+            <summary>
+            Gets the singleton instance of the <see cref="T:Tizen.Flutter.Embedding.DotnetPluginRegistry"/>.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.DotnetPluginRegistry.HasPlugin(Tizen.Flutter.Embedding.IFlutterPlugin)">
+            <summary>
+            Returns whether the plugin is registered.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.DotnetPluginRegistry.AddPlugin(Tizen.Flutter.Embedding.IFlutterPlugin)">
+            <summary>
+            Adds a dotnet plugin.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.DotnetPluginRegistry.RemovePlugin(Tizen.Flutter.Embedding.IFlutterPlugin)">
+            <summary>
+            Removes an added dotnet plugin.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.DotnetPluginRegistry.RemoveAllPlugins">
+            <summary>
+            Removes all added dotnet plugins.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IFlutterPluginBinding">
+            <summary>
+            An interface for providing required stuff for Flutter plugins.
+            </summary>
+            <remarks>
+            This interface is used by Flutter plugins to access the Flutter engine.
+            Currently, only <see cref="T:Tizen.Flutter.Embedding.IBinaryMessenger"/> is supported, but more interfaces may be added in the future.
+            </remarks>
+        </member>
+        <member name="P:Tizen.Flutter.Embedding.IFlutterPluginBinding.BinaryMessenger">
+            <summary>
+            A binary messenger to communicate with the Flutter engine.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IFlutterPlugin">
+            <summary>
+            Interface to be implemented by all Flutter plugins.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IFlutterPlugin.OnAttachedToEngine(Tizen.Flutter.Embedding.IFlutterPluginBinding)">
+            <summary>
+            Called when the plugin is registered with the Flutter engine.
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IFlutterPlugin.OnDetachedFromEngine">
+            <summary>
+            Called when the plugin is unreigstered from the Flutter engine.
+            </summary>
+        </member>
+        <member name="T:Tizen.Flutter.Embedding.IPluginRegistry">
+            <summary>
+            </summary>
+        </member>
+        <member name="M:Tizen.Flutter.Embedding.IPluginRegistry.GetRegistrarForPlugin(System.String)">
+            <summary>
+            Returns the plugin registrar handle for the plugin with the given name.
+            The name must be unique across the application.
+            </summary>
+        </member>
+    </members>
+</doc>

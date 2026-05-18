@@ -1,0 +1,5 @@
+{
+  "package": "native_asset_example",
+  "target_os": "linux",
+  "target_architecture": "arm"
+}

@@ -1,0 +1,8 @@
+is_global = true
+build_property.RootNamespace = Runner
+build_property.ProjectDir = /home/junsu/dev/os/f-project/flutter-tizen/packages/support_ffi_plugin_sample/example/tizen/
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 
