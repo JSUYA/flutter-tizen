@@ -117,6 +117,43 @@ class TizenValidator extends DoctorValidator {
     return result;
   }
 
+  /// Verifies that the `tizen` CLI (a Java-based tool) can actually run.
+  ///
+  /// The `tizen` CLI is required to sign release packages. It depends on a
+  /// Java runtime, which is normally bundled with the Tizen SDK but is
+  /// sometimes missing from VS Code extension installs, causing a
+  /// `java: command not found` failure at signing time.
+  bool _validateTizenCli(List<ValidationMessage> messages) {
+    final File tizenCli = _tizenSdk!.tizenCli;
+    if (!tizenCli.existsSync()) {
+      messages.add(ValidationMessage.error(
+        'Unable to locate the `tizen` CLI executable at ${tizenCli.path}.\n'
+        'It is required to sign release packages. Reinstall the Tizen SDK '
+        'and make sure the NativeCLI package is installed.',
+      ));
+      return false;
+    }
+
+    final RunResult result = _processUtils.runSync(<String>[tizenCli.path, 'version']);
+    if (result.exitCode != 0) {
+      final bool isJavaMissing =
+          result.toString().toLowerCase().contains('java') || !_processManager.canRun('java');
+      if (isJavaMissing) {
+        messages.add(const ValidationMessage.error(
+          'The `tizen` CLI failed to run because Java could not be found.\n'
+          'The `tizen` CLI requires a Java runtime (OpenJDK 17 or later, 64-bit) '
+          'to sign release packages. Install it and make sure `java` is on your PATH.\n'
+          'See: https://github.com/flutter-tizen/flutter-tizen/blob/master/doc/install-tizen-sdk.md#install-java',
+        ));
+      } else {
+        messages.add(ValidationMessage.error('Failed to run the `tizen` CLI:\n$result'));
+      }
+      return false;
+    }
+
+    return true;
+  }
+
   /// See: [AndroidValidator.validate] in `android_workflow.dart`
   @override
   Future<ValidationResult> validateImpl() async {
@@ -174,6 +211,10 @@ class TizenValidator extends DoctorValidator {
     }
 
     if (!_validatePackages(messages)) {
+      return ValidationResult(ValidationType.partial, messages);
+    }
+
+    if (!_validateTizenCli(messages)) {
       return ValidationResult(ValidationType.partial, messages);
     }
 

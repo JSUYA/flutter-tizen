@@ -20,6 +20,40 @@ To enable emulator support, install the following additional packages.
 
 - [Advanced] - [9.0 Tizen or later]
 
+## Install Java
+
+The `tizen` command-line tool is used to sign release packages (`.tpk`) and is a Java-based application. The Tizen SDK usually bundles its own Java runtime, but some `VS Code Extension for Tizen` installs do not, in which case signing fails with an error such as:
+
+```
+.../tools/ide/bin/tizen.sh: line 143: java: command not found
+```
+
+If you see this error, install a Java runtime and make sure `java` is available on your `PATH`. **OpenJDK 17 or later (64-bit)** is recommended.
+
+- **Linux (Ubuntu/Debian)**
+
+  ```sh
+  sudo apt update && sudo apt install openjdk-17-jdk
+  ```
+
+- **macOS (Homebrew)**
+
+  ```sh
+  brew install openjdk@17
+  ```
+
+- **Windows**
+
+  Install OpenJDK 17 (for example, from [Adoptium Temurin](https://adoptium.net/)) and add its `bin` directory to your `PATH`.
+
+Verify the installation:
+
+```sh
+java -version
+```
+
+Then run `flutter-tizen doctor` to confirm that the `tizen` CLI can run.
+
 ## Set up Tizen emulators
 
 If you installed packages for your target platforms in the previous step, you can use _Emulator Manager_ to manage and launch emulator instances. If you can't see any emulator instances in _Emulator Manager_, click the `+` button to open _Emulator Editor_.

@@ -216,6 +216,21 @@ class DotnetTpk extends TizenPackage {
       if (result.exitCode != 0) {
         throwToolExit('Failed to create a TPK:\n$result');
       }
+    } else if (buildMode.isRelease) {
+      // `tz build` signs a single-app TPK with the SDK's default (public
+      // test) distributor certificate, so the requested security profile is
+      // not actually applied to the release package. Re-sign it with the
+      // `tizen` CLI so the output carries the profile's author and
+      // distributor certificates required for store upload and on-device
+      // installation.
+      // https://github.com/flutter-tizen/flutter-tizen/issues/777
+      final RunResult signResult = await tizenSdk!.package(
+        outputTpk.path,
+        sign: securityProfile,
+      );
+      if (signResult.exitCode != 0) {
+        throwToolExit('Failed to sign the TPK:\n$signResult');
+      }
     }
 
     // Copy the TPK and tpkroot to the output directory.

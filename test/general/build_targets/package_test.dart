@@ -118,7 +118,19 @@ void main() {
                 .createSync(recursive: true);
           },
           stdout: kMsbuildOutput,
-        )
+        ),
+        FakeCommand(
+          command: <String>[
+            '/tizen-studio/tools/ide/bin/tizen',
+            'package',
+            '-t',
+            'tpk',
+            '-s',
+            'test_profile',
+            '--',
+            '${projectDir.path}/tizen/bin/Release/tizen80/package_id-1.0.0.tpk',
+          ],
+        ),
       ]);
 
       await DotnetTpk(const TizenBuildInfo(
