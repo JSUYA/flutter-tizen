@@ -216,6 +216,30 @@ class DotnetTpk extends TizenPackage {
       if (result.exitCode != 0) {
         throwToolExit('Failed to create a TPK:\n$result');
       }
+    } else if (buildMode.isRelease &&
+        (result.stdout.contains('Using default certificates') ||
+            result.stdout.contains('signed with Default Certificates'))) {
+      // The .NET build silently signs the TPK with a dummy default certificate
+      // (CN=author) when the signing profile is not applied, and the build
+      // still succeeds. tz emits "Using default certificates" on the `tz build`
+      // path; build-task-tizen (the Tizen.NET.Sdk MSBuild SDK) emits "signed
+      // with Default Certificates" on the older `dotnet build` path. A release
+      // TPK signed with the dummy certificate can be rejected by the Samsung
+      // Seller Portal. Continue the build but warn loudly (visible without -v)
+      // so the issue is not missed before uploading.
+      environment.logger.printWarning(
+        'Warning: The release TPK was signed with a dummy default certificate '
+        'instead of the "$securityProfile" profile.\n'
+        'A package signed with the default certificate can be rejected by the '
+        'Samsung Seller Portal.\n'
+        'This usually means the signing profile could not be applied — for '
+        'example the profile is invalid, or the certificate password is not '
+        'accessible (a locked keyring, or a headless session without an active '
+        'D-Bus/keyring session).\n'
+        'Verify the "$securityProfile" profile in Certificate Manager, make '
+        'sure the certificate password is unlocked, and rebuild before '
+        'uploading.',
+      );
     }
 
     // Copy the TPK and tpkroot to the output directory.

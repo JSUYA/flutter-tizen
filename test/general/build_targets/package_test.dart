@@ -29,6 +29,21 @@ MSBuild version 17.3.0+92e077650 for .NET
   Configuration :
   Platform :
   TargetFramework :
+  Runner -> /flutter_project/tizen/bin/Release/tizen80/package_id-1.0.0.tpk
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+''';
+
+// Same as [kMsbuildOutput] but with the marker emitted by build-task-tizen
+// when the signing profile could not be applied and the dummy default
+// certificate was used instead.
+const kMsbuildDefaultCertOutput = '''
+MSBuild version 17.3.0+92e077650 for .NET
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Runner -> /flutter_project/tizen/bin/Release/tizen80/Runner.dll
   Runner is signed with Default Certificates!
   Runner -> /flutter_project/tizen/bin/Release/tizen80/package_id-1.0.0.tpk
 
@@ -118,7 +133,7 @@ void main() {
                 .createSync(recursive: true);
           },
           stdout: kMsbuildOutput,
-        )
+        ),
       ]);
 
       await DotnetTpk(const TizenBuildInfo(
@@ -150,6 +165,69 @@ void main() {
       expect(pluginsUserLib, exists);
 
       expect(processManager, hasNoRemainingExpectations);
+    }, overrides: <Type, Generator>{
+      FileSystem: () => fileSystem,
+      ProcessManager: () => processManager,
+      Cache: () => cache,
+      OperatingSystemUtils: () => osUtils,
+      TizenSdk: () =>
+          FakeTizenSdk(fileSystem, securityProfile: 'test_profile', processManager: processManager),
+    });
+
+    testUsingContext('Build warns when signed with the dummy default certificate', () async {
+      final Directory outputDir = projectDir.childDirectory('out');
+      final environment = Environment.test(
+        projectDir,
+        outputDir: outputDir,
+        fileSystem: fileSystem,
+        logger: logger,
+        artifacts: artifacts,
+        processManager: processManager,
+      );
+      environment.buildDir.childDirectory('flutter_assets').createSync(recursive: true);
+      environment.buildDir.childFile('app.so').createSync(recursive: true);
+      environment.buildDir
+          .childFile('tizen_plugins/lib/libflutter_plugins.so')
+          .createSync(recursive: true);
+      environment.buildDir.childFile('tizen_plugins/lib/libshared.so').createSync(recursive: true);
+      projectDir.childDirectory('tizen').childFile('.app.deps.json').createSync(recursive: true);
+
+      processManager.addCommands(<FakeCommand>[
+        FakeCommand(
+          command: const <String>[
+            '/tizen-studio/tools/tizen-core/tz',
+            'set',
+            '-b',
+            'Release',
+            '-s',
+            'test_profile',
+          ],
+          workingDirectory: '${projectDir.path}/tizen',
+        ),
+        FakeCommand(
+          command: const <String>[
+            '/tizen-studio/tools/tizen-core/tz',
+            'build',
+          ],
+          workingDirectory: '${projectDir.path}/tizen',
+          onRun: (_) {
+            projectDir
+                .childFile('tizen/bin/Release/tizen80/package_id-1.0.0.tpk')
+                .createSync(recursive: true);
+          },
+          stdout: kMsbuildDefaultCertOutput,
+        ),
+      ]);
+
+      // The build must NOT fail; it continues and emits a visible warning.
+      await DotnetTpk(const TizenBuildInfo(
+        BuildInfo.release,
+        targetArch: 'arm',
+        deviceProfile: 'common',
+      )).build(environment);
+
+      expect(logger.warningText, contains('dummy default certificate'));
+      expect(outputDir.childFile('package_id-1.0.0.tpk'), exists);
     }, overrides: <Type, Generator>{
       FileSystem: () => fileSystem,
       ProcessManager: () => processManager,
