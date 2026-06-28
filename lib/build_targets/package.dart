@@ -230,6 +230,12 @@ class DotnetTpk extends TizenPackage {
       if (result.exitCode != 0) {
         throwToolExit('Failed to create a TPK:\n$result');
       }
+    } else {
+      final RunResult packageResult =
+          await tizenSdk!.package(outputTpk.path, sign: securityProfile);
+      if (packageResult.exitCode != 0) {
+        throwToolExit('Failed to sign the TPK:\n$packageResult');
+      }
     }
 
     // Copy the TPK and tpkroot to the output directory.
