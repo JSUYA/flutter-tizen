@@ -15,6 +15,19 @@ static constexpr const char* kMetadataKeyEnableImepeller =
     "http://tizen.org/metadata/flutter_tizen/enable_impeller";
 static constexpr const char* kMetadataKeyEnableFlutterGpu =
     "http://tizen.org/metadata/flutter_tizen/enable_flutter_gpu";
+static constexpr const char* kMetadataKeyWindowMsaaSamples =
+    "http://tizen.org/metadata/flutter_tizen/window_msaa_samples";
+static constexpr const char* kWindowMsaaSamplesArgument =
+    "--tizen-window-msaa-samples=";
+
+struct FlutterMetadataFlags {
+  bool has_impeller = false;
+  bool impeller_enabled = false;
+  bool has_flutter_gpu = false;
+  bool flutter_gpu_enabled = false;
+  bool has_window_msaa_samples = false;
+  std::string window_msaa_samples;
+};
 
 }  // namespace
 
@@ -53,14 +66,59 @@ std::vector<std::string> FlutterEngineArguments::ParseEngineArgs() {
     }
   }
 
-  std::map<std::string, std::string> metadata = GetMetadata(app_id);
-
-  is_impeller_enabled_ = ProcessMetadataFlag(
-      engine_args, "--enable-impeller", kMetadataKeyEnableImepeller, metadata);
-  is_flutter_gpu_enabled_ =
-      ProcessMetadataFlag(engine_args, "--enable-flutter-gpu",
-                          kMetadataKeyEnableFlutterGpu, metadata);
-
+  FlutterMetadataFlags metadata;
+  app_info_h app_info = nullptr;
+  if (app_manager_get_app_info(app_id.c_str(), &app_info) !=
+      APP_MANAGER_ERROR_NONE) {
+    TizenLog::Error("Failed to retrieve app info.");
+  } else {
+    int ret = app_info_foreach_metadata(
+        app_info,
+        [](const char* key, const char* value, void* user_data) -> bool {
+          auto* flags = static_cast<FlutterMetadataFlags*>(user_data);
+          if (strcmp(key, kMetadataKeyEnableImepeller) == 0) {
+            flags->has_impeller = true;
+            flags->impeller_enabled = strcmp(value, "true") == 0;
+          } else if (strcmp(key, kMetadataKeyEnableFlutterGpu) == 0) {
+            flags->has_flutter_gpu = true;
+            flags->flutter_gpu_enabled = strcmp(value, "true") == 0;
+          } else if (strcmp(key, kMetadataKeyWindowMsaaSamples) == 0) {
+            flags->has_window_msaa_samples = true;
+            flags->window_msaa_samples = value;
+          }
+          return !(flags->has_impeller && flags->has_flutter_gpu &&
+                   flags->has_window_msaa_samples);
+        },
+        &metadata);
+    if (ret != APP_MANAGER_ERROR_NONE) {
+      TizenLog::Error("Failed to get app metadata.");
+    }
+    app_info_destroy(app_info);
+  }
+  is_impeller_enabled_ =
+      ProcessMetadataFlag(engine_args, "--enable-impeller",
+                          metadata.has_impeller, metadata.impeller_enabled);
+  is_flutter_gpu_enabled_ = ProcessMetadataFlag(
+      engine_args, "--enable-flutter-gpu", metadata.has_flutter_gpu,
+      metadata.flutter_gpu_enabled);
+  if (metadata.has_window_msaa_samples) {
+    const std::string& samples = metadata.window_msaa_samples;
+    if (samples == "0" || samples == "2" || samples == "4") {
+      engine_args.erase(
+          std::remove_if(engine_args.begin(), engine_args.end(),
+                         [](const std::string& arg) {
+                           return arg.compare(
+                                      0, strlen(kWindowMsaaSamplesArgument),
+                                      kWindowMsaaSamplesArgument) == 0;
+                         }),
+          engine_args.end());
+      engine_args.insert(engine_args.begin(),
+                         kWindowMsaaSamplesArgument + samples);
+    } else {
+      TizenLog::Warn("Unsupported window MSAA sample count: %s",
+                     samples.c_str());
+    }
+  }
   for (const std::string& arg : engine_args) {
     TizenLog::Info("Enabled: %s", arg.c_str());
   }
@@ -68,34 +126,9 @@ std::vector<std::string> FlutterEngineArguments::ParseEngineArgs() {
   return engine_args;
 }
 
-std::map<std::string, std::string> FlutterEngineArguments::GetMetadata(
-    const std::string& app_id) {
-  std::map<std::string, std::string> map;
-  app_info_h app_info;
-  int ret = app_manager_get_app_info(app_id.c_str(), &app_info);
-  if (ret != APP_MANAGER_ERROR_NONE) {
-    TizenLog::Error("Failed to retrieve app info.");
-    return map;
-  }
-
-  ret = app_info_foreach_metadata(
-      app_info,
-      [](const char* key, const char* value, void* user_data) -> bool {
-        auto* map = static_cast<std::map<std::string, std::string>*>(user_data);
-        map->insert(std::pair<std::string, std::string>(key, value));
-        return true;
-      },
-      &map);
-  if (ret != APP_MANAGER_ERROR_NONE) {
-    TizenLog::Error("Failed to get app metadata.");
-  }
-  return map;
-}
-
 bool FlutterEngineArguments::ProcessMetadataFlag(
     std::vector<std::string>& engine_args, const std::string& flag,
-    const std::string& metadata_key,
-    const std::map<std::string, std::string>& metadata) {
+    bool has_metadata_value, bool metadata_enabled) {
   bool enabled = false;
   auto flag_it = std::find(engine_args.begin(), engine_args.end(), flag);
   bool flag_exists = (flag_it != engine_args.end());
@@ -104,10 +137,7 @@ bool FlutterEngineArguments::ProcessMetadataFlag(
     enabled = true;
   }
 
-  auto metadata_it = metadata.find(metadata_key);
-  if (metadata_it != metadata.end()) {
-    bool metadata_enabled = (metadata_it->second == "true");
-
+  if (has_metadata_value) {
     if (!flag_exists && metadata_enabled) {
       enabled = true;
       engine_args.insert(engine_args.begin(), flag);

@@ -10,7 +10,6 @@
 #include <app_manager.h>
 
 #include <cerrno>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -37,15 +36,11 @@ class FlutterEngineArguments {
   // Reads engine arguments passed from the flutter-tizen tool.
   std::vector<std::string> ParseEngineArgs();
 
-  // Reads metadata from tizen-manifest.xml
-  std::map<std::string, std::string> GetMetadata(const std::string& app_id);
-
   // Processes a metadata flag by checking both engine arguments and application
   // metadata.
   bool ProcessMetadataFlag(std::vector<std::string>& engine_args,
-                           const std::string& flag,
-                           const std::string& metadata_key,
-                           const std::map<std::string, std::string>& metadata);
+                           const std::string& flag, bool has_metadata_value,
+                           bool metadata_enabled);
 
   // The list of parsed engine arguments.
   std::vector<std::string> engine_args_;

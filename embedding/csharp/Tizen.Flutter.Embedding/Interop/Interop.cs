@@ -10,6 +10,22 @@ namespace Tizen.Flutter.Embedding
 {
     internal static class Interop
     {
+        #region app_manager.h
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        [return: MarshalAs(UnmanagedType.I1)]
+        internal delegate bool AppInfoMetadataCallback(string key, string value, IntPtr userData);
+
+        [DllImport("capi-appfw-app-manager.so.0", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int app_manager_get_app_info(string appId, out IntPtr appInfo);
+
+        [DllImport("capi-appfw-app-manager.so.0", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int app_info_foreach_metadata(
+            IntPtr appInfo, AppInfoMetadataCallback callback, IntPtr userData);
+
+        [DllImport("capi-appfw-app-manager.so.0", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int app_info_destroy(IntPtr appInfo);
+        #endregion
+
         #region flutter_tizen.h
         public enum FlutterDesktopRendererType
         {
