@@ -219,6 +219,21 @@ class TizenAotElf extends AotElfBase {
       environment.defines[kExtraGenSnapshotOptions] = extraGenSnapshotOptions.join(',');
     }
     await super.build(environment);
+
+    // The code size analysis files are named after the Android platform
+    // (e.g. snapshot.android-arm.json). Rename them to Tizen-specific names.
+    final String? codeSizeDirectory = environment.defines[kCodeSizeDirectory];
+    if (codeSizeDirectory != null) {
+      final String archName = getNameForTargetPlatform(targetPlatform);
+      final String targetArch = getArchForTargetPlatform(targetPlatform);
+      for (final prefix in <String>['snapshot', 'trace']) {
+        final File file =
+            environment.fileSystem.directory(codeSizeDirectory).childFile('$prefix.$archName.json');
+        if (file.existsSync()) {
+          file.renameSync(file.parent.childFile('$prefix.tizen-$targetArch.json').path);
+        }
+      }
+    }
   }
 }
 

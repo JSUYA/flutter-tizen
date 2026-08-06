@@ -132,11 +132,14 @@ class TizenBuilder {
         logger: globals.logger,
         analytics: globals.analytics,
       );
+      final String targetArch =
+          getArchForTargetPlatform(getTargetPlatformForArch(tizenBuildInfo.targetArch));
       final File codeSizeFile = globals.fs
           .directory(buildInfo.codeSizeDirectory)
-          .childFile('snapshot.$targetPlatform.json');
-      final File precompilerTrace =
-          globals.fs.directory(buildInfo.codeSizeDirectory).childFile('trace.$targetPlatform.json');
+          .childFile('snapshot.tizen-$targetArch.json');
+      final File precompilerTrace = globals.fs
+          .directory(buildInfo.codeSizeDirectory)
+          .childFile('trace.tizen-$targetArch.json');
       final Map<String, Object?> output = await sizeAnalyzer.analyzeAotSnapshot(
         aotSnapshot: codeSizeFile,
         outputDirectory: tpkrootDir,
