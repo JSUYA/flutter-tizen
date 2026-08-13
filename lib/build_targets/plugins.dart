@@ -130,6 +130,13 @@ class NativePlugins extends Target {
         ],
         extraOptions: <String>[
           if (!plugin.isSharedLib) '-fPIC',
+          if (!plugin.isSharedLib && buildMode.isRelease) ...<String>[
+            '-Os',
+            '-fvisibility=hidden',
+            '-fvisibility-inlines-hidden',
+            '-ffunction-sections',
+            '-fdata-sections',
+          ],
           '-I${clientWrapperDir.childDirectory('include').path.toPosixPath()}',
           '-I${publicDir.path.toPosixPath()}',
           '-I${dartSdkDir.childDirectory('include').path.toPosixPath()}',
@@ -231,12 +238,25 @@ class NativePlugins extends Target {
     // Create a dummy project and build libflutter_plugins.so if necessary.
     if (pluginClasses.isNotEmpty) {
       final File projectDef = outputDir.childFile('project_def.prop');
+      // Restrict dynamic exports to the plugin entrypoints in release mode.
+      final File exportsFile = outputDir.childFile('exports.lds')
+        ..writeAsStringSync('''
+{
+  global:
+    *RegisterWithRegistrar;
+  local:
+    *;
+};
+''');
+      final releaseLinkFlags = buildMode.isRelease
+          ? " -Wl,--gc-sections -Wl,--version-script='${exportsFile.path.toPosixPath('')}'"
+          : '';
       projectDef.writeAsStringSync('''
 APPNAME = flutter_plugins
 type = sharedLib
 profile = $profile-$apiVersion
 
-USER_LFLAGS = -Wl,-rpath='\$\$ORIGIN'
+USER_LFLAGS = -Wl,-rpath='\$\$ORIGIN'$releaseLinkFlags
 USER_LIBS = stdc++ pthread ${userLibs.join(' ')}
 ''');
 
