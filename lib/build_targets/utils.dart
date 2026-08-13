@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:archive/archive.dart';
 import 'package:file/file.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/version.dart';
@@ -74,4 +75,37 @@ String getLibNameForFileName(String name) {
     name = name.substring(0, name.lastIndexOf('.'));
   }
   return name;
+}
+
+/// Recompresses the TPK [input] with the maximum deflate compression level
+/// and writes the result to [output].
+///
+/// The Tizen CLI creates TPK archives with the default compression level.
+/// Recompressing at the maximum level typically reduces the package size by
+/// a few percent at a small build time cost. Only the zip container is
+/// rewritten and the archived file contents are left unchanged, so the
+/// package signatures remain valid.
+///
+/// If [input] cannot be read as a zip archive, it is copied to [output]
+/// unchanged.
+void repackTpk(File input, File output) {
+  final Archive archive;
+  try {
+    archive = ZipDecoder().decodeBytes(input.readAsBytesSync());
+  } on FormatException {
+    input.copySync(output.path);
+    return;
+  }
+  final repacked = Archive();
+  for (final ArchiveFile file in archive.files) {
+    if (!file.isFile) {
+      continue;
+    }
+    final copy = ArchiveFile(file.name, file.size, file.content as List<int>)
+      ..mode = file.mode
+      ..lastModTime = file.lastModTime;
+    repacked.addFile(copy);
+  }
+  output.writeAsBytesSync(
+      ZipEncoder().encode(repacked, level: Deflate.BEST_COMPRESSION)!);
 }

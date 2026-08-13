@@ -242,8 +242,14 @@ class DotnetTpk extends TizenPackage {
       );
     }
 
-    // Copy the TPK and tpkroot to the output directory.
-    outputTpk.copySync(outputDir.childFile(tizenProject.outputTpkName).path);
+    // Copy the TPK and tpkroot to the output directory. Debug packages are
+    // copied as-is to keep the incremental build fast.
+    final File finalTpk = outputDir.childFile(tizenProject.outputTpkName);
+    if (buildMode == BuildMode.debug) {
+      outputTpk.copySync(finalTpk.path);
+    } else {
+      repackTpk(outputTpk, finalTpk);
+    }
     final Directory tpkrootDir = outputTpk.parent.childDirectory('tpkroot');
     if (tpkrootDir.existsSync()) {
       copyDirectory(tpkrootDir, outputDir.childDirectory('tpkroot'));
@@ -473,8 +479,14 @@ class NativeTpk extends TizenPackage {
       throwToolExit('Failed to sign the TPK:\n$result');
     }
 
-    // Copy and rename the output TPK.
-    outputTpk.copySync(outputDir.childFile(tizenProject.outputTpkName).path);
+    // Copy and rename the output TPK. Debug packages are copied as-is to
+    // keep the incremental build fast.
+    final File finalTpk = outputDir.childFile(tizenProject.outputTpkName);
+    if (buildMode == BuildMode.debug) {
+      outputTpk.copySync(finalTpk.path);
+    } else {
+      repackTpk(outputTpk, finalTpk);
+    }
 
     // Extract the contents of the TPK to support code size analysis.
     final Directory tpkrootDir = outputDir.childDirectory('tpkroot');
