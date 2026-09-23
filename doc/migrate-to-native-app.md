@@ -121,6 +121,8 @@ The C++ runner doesn't read the `dart_entrypoint` metadata, and a C++ multi app 
 
 1. In `tizen/tizen-manifest.xml`, change `type="flutter"` back to `type="capp"`.
 
+1. If `exec` isn't `runner`, set `APPNAME` in `tizen/project_def.prop` to the same name. The C++ build names the executable after `APPNAME`.
+
 1. If the application element has the `dart_entrypoint` metadata, remove it and set the entrypoint in `tizen/src/runner.cc` instead:
 
    ```cpp
@@ -145,9 +147,14 @@ The C++ runner doesn't read the `dart_entrypoint` metadata, and a C++ multi app 
 
    - Copy the `ui-application` element and the manifest-level elements (such as the package attributes, privileges, and features) to `tizen/ui/tizen-manifest.xml`.
    - Copy the `service-application` element to `tizen/service/tizen-manifest.xml`, together with the privileges and features it needs.
-   - Use `type="capp"` on both application elements, and remove the `dart_entrypoint` metadata.
+   - Use `type="capp"` on both application elements, and remove the `dart_entrypoint` metadata. Keep the values for the next step.
 
-1. The service runner in `tizen/service/src/runner.cc` calls `app.SetDartEntrypoint("serviceMain")`. If your service app used a different entrypoint, change it there.
+1. Set the Dart entrypoint of each application in its runner, because C++ runners don't read the metadata:
+
+   - `tizen/ui/src/runner.cc` runs `main` by default. If the `ui-application` had the `dart_entrypoint` metadata, call `app.SetDartEntrypoint("...")` before `app.Run()` as shown above.
+   - `tizen/service/src/runner.cc` calls `app.SetDartEntrypoint("serviceMain")`. If the `service-application` had a different entrypoint, change it there.
+
+1. Set `APPNAME` in `tizen/ui/project_def.prop` and `tizen/service/project_def.prop` to the `exec` values of the respective applications, if they aren't `runner` and `runner_service`.
 
 1. Move your resources to the UI project and delete the native app files:
 
