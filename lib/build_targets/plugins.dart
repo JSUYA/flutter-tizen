@@ -30,6 +30,7 @@ class NativePlugins extends Target {
   @override
   List<Source> get inputs => const <Source>[
         Source.pattern('{FLUTTER_ROOT}/../lib/build_targets/plugins.dart'),
+        Source.pattern('{FLUTTER_ROOT}/../lib/tizen_plugins.dart'),
         Source.pattern('{FLUTTER_ROOT}/../lib/tizen_sdk.dart'),
         Source.pattern('{WORKSPACE_DIR}/.dart_tool/package_config.json'),
         Source.pattern('{WORKSPACE_DIR}/.dart_tool/package_graph.json'),
@@ -116,6 +117,8 @@ class NativePlugins extends Target {
 
     for (final plugin in nativePlugins) {
       inputs.add(plugin.projectFile);
+      // The plugin class and the header file name come from pubspec.yaml.
+      inputs.add(plugin.directory.parent.childFile('pubspec.yaml'));
 
       final Directory buildDir = plugin.directory.childDirectory(buildConfig);
       if (buildDir.existsSync()) {

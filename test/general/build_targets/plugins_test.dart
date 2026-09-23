@@ -220,6 +220,11 @@ dependencies:
         parseIniFile(outputDir.childFile('project_def.prop'));
     expect(pluginsProjectDef['USER_SRCS'], equals('plugin_registrant.cc'));
     expect(pluginsProjectDef['USER_LIBS'], contains('some_native_plugin'));
+    // The registrant must be regenerated when the plugin declaration changes.
+    expect(
+      environment.buildDir.childFile('tizen_plugins.d').readAsStringSync(),
+      contains(pluginDir.childFile('pubspec.yaml').path),
+    );
   }, overrides: <Type, Generator>{
     FileSystem: () => fileSystem,
     ProcessManager: () => processManager,
