@@ -216,6 +216,31 @@ void main() {
     }
   }, overrides: <Type, Generator>{});
 
+  testUsingContext('Cannot add native Tizen files to an existing plugin project', () async {
+    final command = TizenCreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    await runner.run(<String>[
+      'create',
+      '--no-pub',
+      '--template=plugin',
+      projectDir.path,
+    ]);
+
+    await expectLater(
+      () => runner.run(<String>[
+        'create',
+        '--no-pub',
+        '--platforms=tizen',
+        '--tizen-language=native',
+        projectDir.path,
+      ]),
+      throwsToolExit(message: '--tizen-language=native is only supported for apps.'),
+    );
+    expect(projectDir.childDirectory('tizen'), isNot(exists));
+  }, overrides: <Type, Generator>{
+    Logger: () => logger,
+  });
+
   testUsingContext('Can create a C++ plugin project', () async {
     final command = TizenCreateCommand();
     final CommandRunner<void> runner = createTestCommandRunner(command);

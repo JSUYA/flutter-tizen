@@ -74,7 +74,7 @@ class TizenCreateCommand extends CreateCommand {
       .childDirectory('templates');
 
   /// See: [CreateCommand._getProjectType] in `create.dart`
-  bool get _shouldGeneratePlugin {
+  FlutterTemplateType? get _projectType {
     FlutterTemplateType? template;
     final String? templateArgument = stringArg('template');
     if (templateArgument != null) {
@@ -89,8 +89,10 @@ class TizenCreateCommand extends CreateCommand {
     if (projectDir.existsSync() && projectDir.listSync().isNotEmpty) {
       template = determineTemplateType();
     }
-    return template == FlutterTemplateType.plugin;
+    return template;
   }
+
+  bool get _shouldGeneratePlugin => _projectType == FlutterTemplateType.plugin;
 
   @override
   void addPlatformsOptions({
@@ -267,7 +269,8 @@ class TizenCreateCommand extends CreateCommand {
       throwToolExit('Creating an FFI plugin or package is not yet supported.');
     }
 
-    if (tizenLanguage == 'native' && template != 'app') {
+    if (tizenLanguage == 'native' &&
+        (_projectType ?? FlutterTemplateType.app) != FlutterTemplateType.app) {
       throwToolExit('--tizen-language=native is only supported for apps.');
     }
 
