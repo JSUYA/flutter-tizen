@@ -61,6 +61,10 @@ class NativePlugins extends Target {
     final FlutterProject project = FlutterProject.fromDirectory(environment.projectDir);
     final tizenProject = TizenProject.fromFlutter(project);
 
+    // Any dependency may become or stop being a native plugin, or change its
+    // plugin class, without changing the package config.
+    inputs.addAll(await findDependencyPubspecs(project));
+
     // Check if there's anything to build.
     List<TizenPlugin> nativePlugins = await findTizenPlugins(project, cppOnly: true);
     if (buildInfo.buildInfo.mode.isRelease) {
@@ -117,8 +121,6 @@ class NativePlugins extends Target {
 
     for (final plugin in nativePlugins) {
       inputs.add(plugin.projectFile);
-      // The plugin class and the header file name come from pubspec.yaml.
-      inputs.add(plugin.directory.parent.childFile('pubspec.yaml'));
 
       final Directory buildDir = plugin.directory.childDirectory(buildConfig);
       if (buildDir.existsSync()) {
