@@ -237,9 +237,12 @@ Future<File> ensurePrebuiltRunner(
       );
     }
     cacheDir.createSync(recursive: true);
-    // Replace atomically in case another build is reading the cache.
-    output.copySync('${runner.path}.tmp');
-    globals.fs.file('${runner.path}.tmp').renameSync(runner.path);
+    // Replace atomically through a temporary file unique to this build, as
+    // other builds may be writing or reading the cache at the same time.
+    final Directory tempDir = cacheDir.createTempSync('runner.');
+    output.copySync(tempDir.childFile('runner').path);
+    tempDir.childFile('runner').renameSync(runner.path);
+    tempDir.deleteSync(recursive: true);
   } finally {
     workDir.deleteSync(recursive: true);
   }
