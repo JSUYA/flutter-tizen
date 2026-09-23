@@ -169,6 +169,10 @@ class TizenManifest {
   /// The application type (either "capp" or "dotnet").
   String? get applicationType => _applications.first.getAttribute('type');
 
+  /// The executable file names of all applications in the package.
+  Iterable<String> get executables =>
+      _applications.map((XmlElement app) => app.getAttribute('exec')).whereType<String>();
+
   @override
   String toString() => _document.toXmlString(pretty: true);
 }

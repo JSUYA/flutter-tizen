@@ -105,4 +105,16 @@ void main() {
     expect(serviceDebugDir, isNot(exists));
     expect(serviceReleaseDir, isNot(exists));
   });
+
+  testWithoutContext('Detects apps running on the prebuilt runner', () {
+    project.manifestFile.createSync(recursive: true);
+    expect(project.usesPrebuiltRunner, isTrue);
+
+    final File projectDef = project.editableDirectory.childFile('project_def.prop')..createSync();
+    expect(project.usesPrebuiltRunner, isFalse);
+    projectDef.deleteSync();
+
+    project.editableDirectory.childFile('Runner.csproj').createSync();
+    expect(project.usesPrebuiltRunner, isFalse);
+  });
 }

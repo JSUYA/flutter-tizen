@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:archive/archive.dart';
 import 'package:flutter_tools/src/base/common.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/process.dart';
@@ -370,31 +371,6 @@ class NativeTpk extends TizenPackage {
       arch: buildInfo.targetArch,
     );
 
-    final Directory embeddingDir = environment.buildDir.childDirectory('tizen_embedding');
-    final File embeddingLib = embeddingDir.childFile('libembedding_cpp.a');
-    const embeddingDependencies = <String>[
-      'appcore-agent',
-      'capi-appfw-app-common',
-      'capi-appfw-application',
-      'capi-appfw-app-manager',
-      'dlog',
-    ];
-
-    final Directory buildDir = tizenProject.hostAppRoot.childDirectory(buildConfig);
-    if (buildDir.existsSync()) {
-      buildDir.deleteSync(recursive: true);
-    }
-    buildDir.createSync(recursive: true);
-
-    if (tizenProject.isMultiApp) {
-      final Directory serviceBuildDir =
-          tizenProject.serviceAppDirectory.childDirectory(buildConfig);
-      if (serviceBuildDir.existsSync()) {
-        serviceBuildDir.deleteSync(recursive: true);
-      }
-      serviceBuildDir.createSync(recursive: true);
-    }
-
     // The output TPK is signed with an active profile unless otherwise
     // specified.
     String? securityProfile = buildInfo.securityProfile;
@@ -416,6 +392,51 @@ class NativeTpk extends TizenPackage {
       );
     }
 
+    if (tizenProject.usesPrebuiltRunner) {
+      final File runner = await ensurePrebuiltRunner(
+        buildInfo,
+        rootstrap: rootstrap,
+        embedder: embedder,
+      );
+      // Every application in the package runs on the same runner.
+      final Directory binDir = ephemeralDir.childDirectory('bin')..createSync();
+      for (final String exec in tizenManifest.executables) {
+        runner.copySync(binDir.childFile(exec).path);
+      }
+      tizenProject.manifestFile.copySync(ephemeralDir.childFile('tizen-manifest.xml').path);
+      final Directory sharedDir = tizenProject.hostAppRoot.childDirectory('shared');
+      if (sharedDir.existsSync()) {
+        copyDirectory(sharedDir, ephemeralDir.childDirectory('shared'));
+      }
+
+      final File outputTpk = outputDir.childFile(tizenProject.outputTpkName);
+      outputTpk.writeAsBytesSync(_zipDirectory(ephemeralDir));
+      final RunResult result = await tizenSdk!.package(outputTpk.path, sign: securityProfile);
+      if (result.exitCode != 0) {
+        throwToolExit('Failed to sign the TPK:\n$result');
+      }
+      globals.os.unzip(outputTpk, outputDir.childDirectory('tpkroot'));
+      return;
+    }
+
+    final Directory embeddingDir = environment.buildDir.childDirectory('tizen_embedding');
+    final File embeddingLib = embeddingDir.childFile('libembedding_cpp.a');
+
+    final Directory buildDir = tizenProject.hostAppRoot.childDirectory(buildConfig);
+    if (buildDir.existsSync()) {
+      buildDir.deleteSync(recursive: true);
+    }
+    buildDir.createSync(recursive: true);
+
+    if (tizenProject.isMultiApp) {
+      final Directory serviceBuildDir =
+          tizenProject.serviceAppDirectory.childDirectory(buildConfig);
+      if (serviceBuildDir.existsSync()) {
+        serviceBuildDir.deleteSync(recursive: true);
+      }
+      serviceBuildDir.createSync(recursive: true);
+    }
+
     final extraOptions = <String>[
       // The extra quotation marks ("") for linker flags are required due to
       // https://github.com/flutter-tizen/flutter-tizen/issues/218.
@@ -430,7 +451,7 @@ class NativeTpk extends TizenPackage {
         '-lflutter_tizen_${profile}_experimental'
       else
         '-lflutter_tizen_$profile',
-      for (final String lib in embeddingDependencies) '-l$lib',
+      for (final String lib in kEmbeddingDependencies) '-l$lib',
       '-I${tizenProject.managedDirectory.path.toPosixPath()}',
       '-I${pluginsDir.childDirectory('include').path.toPosixPath()}',
       for (final String lib in pluginLibs) '-l$lib',
@@ -501,6 +522,20 @@ class NativeTpk extends TizenPackage {
     final Directory tpkrootDir = outputDir.childDirectory('tpkroot');
     globals.os.unzip(outputTpk, tpkrootDir);
   }
+}
+
+/// Creates an unsigned TPK from the contents of [directory].
+List<int> _zipDirectory(Directory directory) {
+  final archive = Archive();
+  for (final File file in directory.listSync(recursive: true).whereType<File>()) {
+    final String name = globals.fs.path
+        .relative(file.path, from: directory.path)
+        .replaceAll(globals.fs.path.separator, '/');
+    final List<int> bytes = file.readAsBytesSync();
+    archive.addFile(ArchiveFile(name, bytes.length, bytes)
+      ..mode = name.startsWith('bin/') ? 493 /* 0755 */ : 420 /* 0644 */);
+  }
+  return ZipEncoder().encode(archive)!;
 }
 
 class DotnetModule extends TizenPackage {

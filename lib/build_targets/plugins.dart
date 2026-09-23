@@ -228,14 +228,32 @@ class NativePlugins extends Target {
       outputs.add(includeDir.childFile(header.basename));
     }
 
+    // The prebuilt runner has no generated plugin registrant compiled in, so
+    // it calls the registrant through libflutter_plugins.so instead.
+    final bool exportRegistrant = tizenProject.usesPrebuiltRunner;
+    final File generatedPluginRegistrant =
+        tizenProject.managedDirectory.childFile('generated_plugin_registrant.h');
+    if (exportRegistrant) {
+      inputs.add(generatedPluginRegistrant);
+      outputDir.childFile('plugin_registrant.cc').writeAsStringSync('''
+#include "generated_plugin_registrant.h"
+
+extern "C" __attribute__((visibility("default"))) void FlutterRegisterPlugins(
+    flutter::PluginRegistry *registry) {
+  RegisterPlugins(registry);
+}
+''');
+    }
+
     // Create a dummy project and build libflutter_plugins.so if necessary.
-    if (pluginClasses.isNotEmpty) {
+    if (pluginClasses.isNotEmpty || exportRegistrant) {
       final File projectDef = outputDir.childFile('project_def.prop');
       projectDef.writeAsStringSync('''
 APPNAME = flutter_plugins
 type = sharedLib
 profile = $profile-$apiVersion
 
+${exportRegistrant ? 'USER_SRCS = plugin_registrant.cc' : ''}
 USER_LFLAGS = -Wl,-rpath='\$\$ORIGIN'
 USER_LIBS = stdc++ pthread ${userLibs.join(' ')}
 ''');
@@ -251,6 +269,10 @@ USER_LIBS = stdc++ pthread ${userLibs.join(' ')}
         extraOptions: <String>[
           '-I${clientWrapperDir.childDirectory('include').path.toPosixPath()}',
           '-I${publicDir.path.toPosixPath()}',
+          if (exportRegistrant) ...<String>[
+            '-I${generatedPluginRegistrant.parent.path.toPosixPath()}',
+            '-I${includeDir.path.toPosixPath()}',
+          ],
           embeddingLib.path.toPosixPath(),
           '-L${embedderDir.path.toPosixPath()}',
           '-l${getLibNameForFileName(embedder.basename)}',

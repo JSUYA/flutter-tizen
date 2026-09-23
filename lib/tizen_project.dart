@@ -81,6 +81,10 @@ class TizenProject extends FlutterProjectPlatform {
 
   bool get isDotnet => projectFile?.basename.endsWith('.csproj') ?? false;
 
+  /// Whether the app has no native project of its own and runs on the
+  /// prebuilt runner (created with `--tizen-language=native`).
+  bool get usesPrebuiltRunner => projectFile == null;
+
   /// Returns "tizenLanguage" string declared in [parent]'s pubspec.
   ///
   /// Only applicable for module projects.

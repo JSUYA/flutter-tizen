@@ -119,6 +119,7 @@ dependencies:
     <ui-application appid="app_id" exec="Runner.dll" type="dotnet"/>
 </manifest>
 ''');
+    projectDir.childFile('tizen/Runner.csproj').createSync(recursive: true);
 
     _createFakeIncludeDirs(cache);
   });
@@ -172,6 +173,46 @@ dependencies:
     expect(outputDir.childFile('lib/libflutter_plugins.so'), isNot(exists));
     expect(outputDir.childFile('lib/libsome_native_plugin.so'), exists);
     expect(outputDir.childFile('lib/libshared.so'), exists);
+  }, overrides: <Type, Generator>{
+    FileSystem: () => fileSystem,
+    ProcessManager: () => processManager,
+    Cache: () => cache,
+    TizenSdk: () => FakeTizenSdk(fileSystem),
+  });
+
+  testUsingContext('Exports plugin registrant for apps on the prebuilt runner', () async {
+    projectDir.childFile('tizen/Runner.csproj').deleteSync();
+    projectDir.childFile('tizen/flutter/generated_plugin_registrant.h').createSync(recursive: true);
+    final File projectDef = pluginDir.childFile('tizen/project_def.prop');
+    projectDef
+        .writeAsStringSync(projectDef.readAsStringSync().replaceFirst('staticLib', 'sharedLib'));
+
+    final environment = Environment.test(
+      projectDir,
+      fileSystem: fileSystem,
+      logger: logger,
+      artifacts: artifacts,
+      processManager: processManager,
+    );
+
+    await NativePlugins(const TizenBuildInfo(
+      BuildInfo.debug,
+      targetArch: 'x86',
+      deviceProfile: 'common',
+    )).build(environment);
+
+    // libflutter_plugins.so is built even if there are no staticLib plugins.
+    final Directory outputDir = environment.buildDir.childDirectory('tizen_plugins');
+    expect(outputDir.childFile('lib/libflutter_plugins.so'), exists);
+    expect(outputDir.childFile('lib/libsome_native_plugin.so'), exists);
+    expect(
+      outputDir.childFile('plugin_registrant.cc').readAsStringSync(),
+      contains('void FlutterRegisterPlugins('),
+    );
+    final Map<String, String> pluginsProjectDef =
+        parseIniFile(outputDir.childFile('project_def.prop'));
+    expect(pluginsProjectDef['USER_SRCS'], equals('plugin_registrant.cc'));
+    expect(pluginsProjectDef['USER_LIBS'], contains('some_native_plugin'));
   }, overrides: <Type, Generator>{
     FileSystem: () => fileSystem,
     ProcessManager: () => processManager,

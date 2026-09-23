@@ -4,11 +4,13 @@
 
 import 'package:flutter_tools/src/base/common.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
+import 'package:flutter_tools/src/base/fingerprint.dart';
 import 'package:flutter_tools/src/base/process.dart';
 import 'package:flutter_tools/src/build_info.dart';
 import 'package:flutter_tools/src/build_system/build_system.dart';
 import 'package:flutter_tools/src/build_system/depfile.dart';
 import 'package:flutter_tools/src/cache.dart';
+import 'package:flutter_tools/src/globals.dart' as globals;
 import 'package:flutter_tools/src/project.dart';
 
 import '../tizen_build_info.dart';
@@ -16,6 +18,19 @@ import '../tizen_project.dart';
 import '../tizen_sdk.dart';
 import '../tizen_tpk.dart';
 import 'utils.dart';
+
+const kEmbeddingDependencies = <String>[
+  'appcore-agent',
+  'capi-appfw-app-common',
+  'capi-appfw-application',
+  'capi-appfw-app-manager',
+  'dlog',
+];
+
+Directory get _flutterTizenRoot => globals.fs.directory(Cache.flutterRoot).parent;
+
+Directory get _embeddingDirectory =>
+    _flutterTizenRoot.childDirectory('embedding').childDirectory('cpp');
 
 class NativeEmbedding extends Target {
   NativeEmbedding(this.buildInfo);
@@ -56,11 +71,7 @@ class NativeEmbedding extends Target {
 
     final Directory outputDir = environment.buildDir.childDirectory('tizen_embedding')
       ..createSync(recursive: true);
-    final Directory embeddingDir = environment.fileSystem
-        .directory(Cache.flutterRoot)
-        .parent
-        .childDirectory('embedding')
-        .childDirectory('cpp');
+    final Directory embeddingDir = _embeddingDirectory;
     embeddingDir.listSync().whereType<File>().forEach(inputs.add);
     copyDirectory(
       embeddingDir.childDirectory('include'),
@@ -131,4 +142,107 @@ class NativeEmbedding extends Target {
       environment.buildDir.childFile('tizen_embedding.d'),
     );
   }
+}
+
+/// Returns the prebuilt runner of apps created with `--tizen-language=native`.
+///
+/// The runner has no app-specific code, so it is built from
+/// `embedding/cpp/runner` only once per configuration and cached in the Flutter
+/// cache. App builds only copy it into the package.
+Future<File> ensurePrebuiltRunner(
+  TizenBuildInfo buildInfo, {
+  required Rootstrap rootstrap,
+  required File embedder,
+}) async {
+  final String buildConfig = getBuildConfig(buildInfo.buildInfo.mode);
+  final Directory cacheDir = globals.cache
+      .getArtifactDirectory('tizen-runner')
+      .childDirectory(rootstrap.id)
+      .childDirectory(getLibNameForFileName(embedder.basename))
+      .childDirectory(buildConfig);
+  final File runner = cacheDir.childFile('runner');
+
+  final Directory embeddingDir = _embeddingDirectory;
+  final Directory commonDir = getCommonArtifactsDirectory();
+  final Directory clientWrapperIncludeDir =
+      commonDir.childDirectory('cpp_client_wrapper').childDirectory('include');
+  final Directory publicDir = commonDir.childDirectory('public');
+
+  // Skip the Debug and Release directories which contain build outputs.
+  final sources = <File>[
+    ...embeddingDir.listSync().whereType<File>(),
+    for (final String name in <String>['include', 'runner'])
+      ...embeddingDir.childDirectory(name).listSync(recursive: true).whereType<File>(),
+  ];
+  final fingerprinter = Fingerprinter(
+    fingerprintPath: cacheDir.childFile('runner.fingerprint').path,
+    paths: <String>[
+      _flutterTizenRoot
+          .childDirectory('lib')
+          .childDirectory('build_targets')
+          .childFile('embedding.dart')
+          .path,
+      embedder.path,
+      for (final File file in sources) file.path,
+      for (final Directory dir in <Directory>[clientWrapperIncludeDir, publicDir])
+        for (final File file in dir.listSync(recursive: true).whereType<File>()) file.path,
+    ],
+    fileSystem: globals.fs,
+    logger: globals.logger,
+  );
+  if (runner.existsSync() && fingerprinter.doesFingerprintMatch()) {
+    return runner;
+  }
+
+  // Build in a copy of the sources because the build tool writes the objects
+  // of ../*.cc next to the project directory.
+  final Directory workDir = globals.fs.systemTempDirectory.createTempSync('flutter_tizen_runner.');
+  try {
+    for (final source in sources) {
+      final File copy =
+          workDir.childFile(globals.fs.path.relative(source.path, from: embeddingDir.path));
+      copy.parent.createSync(recursive: true);
+      source.copySync(copy.path);
+    }
+    final Directory projectDir = workDir.childDirectory('runner');
+
+    assert(tizenSdk != null);
+    final RunResult result = await tizenSdk!.buildNative(
+      projectDir.path,
+      configuration: buildConfig,
+      arch: getTizenCliArch(buildInfo.targetArch),
+      predefines: <String>[
+        '${buildInfo.deviceProfile.toUpperCase()}_PROFILE',
+      ],
+      extraOptions: <String>[
+        '-Wl,--unresolved-symbols=ignore-in-shared-libs',
+        '-I${clientWrapperIncludeDir.path.toPosixPath()}',
+        '-I${publicDir.path.toPosixPath()}',
+        '-L${embedder.parent.path.toPosixPath()}',
+        '-l${getLibNameForFileName(embedder.basename)}',
+        for (final String lib in kEmbeddingDependencies) '-l$lib',
+        '-ldl',
+      ],
+      rootstrap: rootstrap.id,
+    );
+    if (result.exitCode != 0) {
+      throwToolExit('Failed to build the runner:\n$result');
+    }
+
+    final File output = projectDir.childDirectory(buildConfig).childFile('runner');
+    if (!output.existsSync()) {
+      throwToolExit(
+        'Build succeeded but the file ${output.path} is not found:\n'
+        '${result.stdout}',
+      );
+    }
+    cacheDir.createSync(recursive: true);
+    // Replace atomically in case another build is reading the cache.
+    output.copySync('${runner.path}.tmp');
+    globals.fs.file('${runner.path}.tmp').renameSync(runner.path);
+  } finally {
+    workDir.deleteSync(recursive: true);
+  }
+  fingerprinter.writeFingerprint();
+  return runner;
 }
