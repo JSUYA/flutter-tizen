@@ -344,12 +344,12 @@ type = app
       projectDir.childFile('tizen/tizen-manifest.xml').writeAsStringSync('''
 <manifest package="package_id" version="1.0.0" api-version="6.0">
     <profile name="common"/>
-    <ui-application appid="app_id" exec="runner" type="capp"/>
-    <service-application appid="app_id_service" exec="runner_service" type="capp"/>
+    <ui-application appid="app_id" exec="runner" type="flutter"/>
+    <service-application appid="app_id_service" exec="runner_service" type="flutter"/>
 </manifest>
 ''');
       projectDir.childFile('tizen/shared/res/ic_launcher.png').createSync(recursive: true);
-      projectDir.childFile('tizen/.app.deps.json').createSync(recursive: true);
+      projectDir.childFile('.dart_tool/tizen/.app.deps.json').createSync(recursive: true);
 
       final Directory embeddingDir = fileSystem.directory('embedding/cpp');
       embeddingDir.childFile('flutter_app.cc').createSync(recursive: true);
@@ -414,9 +414,15 @@ type = app
           'tizen-manifest.xml',
         ]),
       );
+      final String manifest = utf8.decode(files['tizen-manifest.xml']!);
+      expect(manifest, isNot(contains('type="flutter"')));
+      expect('type="capp"'.allMatches(manifest), hasLength(2));
       expect(cachedRunner(), exists);
-      // The app itself has no native project to build.
-      expect(projectDir.childDirectory('tizen/Release'), isNot(exists));
+      // Nothing is generated in the tizen directory.
+      expect(
+        projectDir.childDirectory('tizen').listSync(recursive: true).whereType<File>(),
+        hasLength(2),
+      );
     }, overrides: <Type, Generator>{
       FileSystem: () => fileSystem,
       ProcessManager: () => processManager,

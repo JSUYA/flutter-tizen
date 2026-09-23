@@ -119,7 +119,6 @@ dependencies:
     <ui-application appid="app_id" exec="Runner.dll" type="dotnet"/>
 </manifest>
 ''');
-    projectDir.childFile('tizen/Runner.csproj').createSync(recursive: true);
 
     _createFakeIncludeDirs(cache);
   });
@@ -181,8 +180,11 @@ dependencies:
   });
 
   testUsingContext('Exports plugin registrant for apps on the prebuilt runner', () async {
-    projectDir.childFile('tizen/Runner.csproj').deleteSync();
-    projectDir.childFile('tizen/flutter/generated_plugin_registrant.h').createSync(recursive: true);
+    projectDir.childFile('tizen/tizen-manifest.xml').writeAsStringSync('''
+<manifest package="package_id" version="1.0.0" api-version="4.0">
+    <ui-application appid="app_id" exec="runner" type="flutter"/>
+</manifest>
+''');
     final File projectDef = pluginDir.childFile('tizen/project_def.prop');
     projectDef
         .writeAsStringSync(projectDef.readAsStringSync().replaceFirst('staticLib', 'sharedLib'));
@@ -209,6 +211,11 @@ dependencies:
       outputDir.childFile('plugin_registrant.cc').readAsStringSync(),
       contains('void FlutterRegisterPlugins('),
     );
+    expect(
+      outputDir.childFile('generated_plugin_registrant.h').readAsStringSync(),
+      contains('SomeNativePluginRegisterWithRegistrar('),
+    );
+    expect(projectDir.childDirectory('tizen/flutter'), isNot(exists));
     final Map<String, String> pluginsProjectDef =
         parseIniFile(outputDir.childFile('project_def.prop'));
     expect(pluginsProjectDef['USER_SRCS'], equals('plugin_registrant.cc'));

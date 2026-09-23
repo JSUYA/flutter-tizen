@@ -107,14 +107,23 @@ void main() {
   });
 
   testWithoutContext('Detects apps running on the prebuilt runner', () {
-    project.manifestFile.createSync(recursive: true);
+    expect(project.usesPrebuiltRunner, isFalse);
+
+    project.manifestFile
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+<manifest package="package_id" version="1.0.0">
+    <ui-application appid="app_id" exec="runner" type="capp"/>
+</manifest>
+''');
+    expect(project.usesPrebuiltRunner, isFalse);
+    expect(project.managedDirectory.path, endsWith('tizen/flutter'));
+
+    project.manifestFile.writeAsStringSync(
+      project.manifestFile.readAsStringSync().replaceFirst('"capp"', '"flutter"'),
+    );
     expect(project.usesPrebuiltRunner, isTrue);
-
-    final File projectDef = project.editableDirectory.childFile('project_def.prop')..createSync();
-    expect(project.usesPrebuiltRunner, isFalse);
-    projectDef.deleteSync();
-
-    project.editableDirectory.childFile('Runner.csproj').createSync();
-    expect(project.usesPrebuiltRunner, isFalse);
+    expect(project.managedDirectory.path, endsWith('.dart_tool/tizen'));
+    expect(project.appDepsFile.path, endsWith('.dart_tool/tizen/.app.deps.json'));
   });
 }

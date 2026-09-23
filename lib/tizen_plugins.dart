@@ -632,13 +632,20 @@ Future<void> _writeTizenPluginRegistrant(
         project.serviceManagedDirectory.childFile('GeneratedPluginRegistrant.cs'),
       );
     }
-  } else {
-    await renderTemplateToFile(
-      _cppPluginRegistryTemplate,
-      context,
+  } else if (!project.usesPrebuiltRunner) {
+    await writeCppPluginRegistrant(
+      cppPlugins,
       project.managedDirectory.childFile('generated_plugin_registrant.h'),
     );
   }
+}
+
+Future<void> writeCppPluginRegistrant(List<TizenPlugin> cppPlugins, File file) {
+  return renderTemplateToFile(
+    _cppPluginRegistryTemplate,
+    <String, Object>{'cppPlugins': cppPlugins.map((TizenPlugin plugin) => plugin.toMap())},
+    file,
+  );
 }
 
 // Reserved for future use.
@@ -731,7 +738,7 @@ Future<void> _writeAppDepndencyInfo(
   }
 
   final tizenProject = TizenProject.fromFlutter(project);
-  final File appDepsJson = tizenProject.hostAppRoot.childFile('.app.deps.json');
+  final File appDepsJson = tizenProject.appDepsFile;
   final List<TizenPlugin> plugins = await findTizenPlugins(project);
   final pluginInfo = <Map<String, Object>>[];
   final YamlMap? packages = packagesFromPubspecLock();
@@ -783,7 +790,9 @@ Future<void> _writeAppDepndencyInfo(
 
   const encoder = JsonEncoder.withIndent('  ');
   final String formattedJsonString = encoder.convert(result);
-  appDepsJson.writeAsStringSync(formattedJsonString);
+  appDepsJson
+    ..createSync(recursive: true)
+    ..writeAsStringSync(formattedJsonString);
 }
 
 /// Source: [_shortGitRevision] in `version.dart`

@@ -149,14 +149,13 @@ void main() {
           .whereType<File>()
           .map((File file) => globals.fs.path.relative(file.path, from: tizenDir.path)),
       unorderedEquals(<String>[
-        '.gitignore',
         globals.fs.path.join('shared', 'res', 'ic_launcher.png'),
         'tizen-manifest.xml',
       ]),
     );
     expect(
       tizenDir.childFile('tizen-manifest.xml').readAsStringSync(),
-      contains('<ui-application appid="com.example.flutter_project" exec="runner" type="capp"'),
+      contains('<ui-application appid="com.example.flutter_project" exec="runner" type="flutter"'),
     );
   }, overrides: <Type, Generator>{});
 

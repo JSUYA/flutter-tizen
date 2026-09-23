@@ -105,7 +105,7 @@ class DotnetTpk extends TizenPackage {
         ? 'libflutter_tizen_${profile}_experimental.so'
         : 'libflutter_tizen_$profile.so');
     final File icuData = engineDir.childFile('icudtl.dat');
-    final File appDepsJson = tizenProject.hostAppRoot.childFile('.app.deps.json');
+    final File appDepsJson = tizenProject.appDepsFile;
 
     engineBinary.copySync(libDir.childFile(engineBinary.basename).path);
     // The embedder so name is statically defined in C# code and cannot be
@@ -317,7 +317,7 @@ class NativeTpk extends TizenPackage {
         ? 'libflutter_tizen_${profile}_experimental.so'
         : 'libflutter_tizen_$profile.so');
     final File icuData = engineDir.childFile('icudtl.dat');
-    final File appDepsJson = tizenProject.hostAppRoot.childFile('.app.deps.json');
+    final File appDepsJson = tizenProject.appDepsFile;
 
     engineBinary.copySync(libDir.childFile(engineBinary.basename).path);
     embedder.copySync(libDir.childFile(embedder.basename).path);
@@ -403,7 +403,10 @@ class NativeTpk extends TizenPackage {
       for (final String exec in tizenManifest.executables) {
         runner.copySync(binDir.childFile(exec).path);
       }
-      tizenProject.manifestFile.copySync(ephemeralDir.childFile('tizen-manifest.xml').path);
+      // The platform launches and debugs only "capp" apps with the native app
+      // loader, the same as C++ apps.
+      tizenManifest.applicationType = 'capp';
+      ephemeralDir.childFile('tizen-manifest.xml').writeAsStringSync(tizenManifest.toXmlString());
       final Directory sharedDir = tizenProject.hostAppRoot.childDirectory('shared');
       if (sharedDir.existsSync()) {
         copyDirectory(sharedDir, ephemeralDir.childDirectory('shared'));

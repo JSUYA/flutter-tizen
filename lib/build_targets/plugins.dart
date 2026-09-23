@@ -231,10 +231,11 @@ class NativePlugins extends Target {
     // The prebuilt runner has no generated plugin registrant compiled in, so
     // it calls the registrant through libflutter_plugins.so instead.
     final bool exportRegistrant = tizenProject.usesPrebuiltRunner;
-    final File generatedPluginRegistrant =
-        tizenProject.managedDirectory.childFile('generated_plugin_registrant.h');
     if (exportRegistrant) {
-      inputs.add(generatedPluginRegistrant);
+      await writeCppPluginRegistrant(
+        nativePlugins,
+        outputDir.childFile('generated_plugin_registrant.h'),
+      );
       outputDir.childFile('plugin_registrant.cc').writeAsStringSync('''
 #include "generated_plugin_registrant.h"
 
@@ -269,10 +270,7 @@ USER_LIBS = stdc++ pthread ${userLibs.join(' ')}
         extraOptions: <String>[
           '-I${clientWrapperDir.childDirectory('include').path.toPosixPath()}',
           '-I${publicDir.path.toPosixPath()}',
-          if (exportRegistrant) ...<String>[
-            '-I${generatedPluginRegistrant.parent.path.toPosixPath()}',
-            '-I${includeDir.path.toPosixPath()}',
-          ],
+          if (exportRegistrant) '-I${includeDir.path.toPosixPath()}',
           embeddingLib.path.toPosixPath(),
           '-L${embedderDir.path.toPosixPath()}',
           '-l${getLibNameForFileName(embedder.basename)}',
