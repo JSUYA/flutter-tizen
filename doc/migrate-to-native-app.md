@@ -105,10 +105,54 @@ The TPK contains the runner under the name of each `exec` attribute (for example
 
 ## Reverting to a C++ app
 
-To go back to the C++ app model, run the following in the project directory. The command adds the missing runner sources and project files without overwriting your manifest.
+The C++ runner doesn't read the `dart_entrypoint` metadata, and a C++ multi app has separate `ui` and `service` projects. Follow the steps for your app type. `flutter-tizen create` only adds missing files and never overwrites your manifest.
 
-```sh
-flutter-tizen create --platforms tizen --tizen-language cpp .
-```
+### UI app or service app
 
-Then change `type="flutter"` back to `type="capp"` in `tizen/tizen-manifest.xml`.
+1. Add the C++ runner sources and project files. Pass the same `--app-type` as your app (`ui` is the default):
+
+   ```sh
+   # A UI app.
+   flutter-tizen create --platforms tizen --tizen-language cpp .
+
+   # A service app.
+   flutter-tizen create --platforms tizen --tizen-language cpp --app-type service .
+   ```
+
+1. In `tizen/tizen-manifest.xml`, change `type="flutter"` back to `type="capp"`.
+
+1. If the application element has the `dart_entrypoint` metadata, remove it and set the entrypoint in `tizen/src/runner.cc` instead:
+
+   ```cpp
+   int main(int argc, char *argv[]) {
+     App app;
+     app.SetDartEntrypoint("myEntrypoint");
+     return app.Run(argc, argv);
+   }
+   ```
+
+### Multi app
+
+1. Add the C++ `ui` and `service` projects:
+
+   ```sh
+   flutter-tizen create --platforms tizen --tizen-language cpp --app-type multi .
+   ```
+
+   This creates `tizen/ui` and `tizen/service`, each with a runner and a template `tizen-manifest.xml`.
+
+1. Move your settings from `tizen/tizen-manifest.xml` to the new manifests:
+
+   - Copy the `ui-application` element and the manifest-level elements (such as the package attributes, privileges, and features) to `tizen/ui/tizen-manifest.xml`.
+   - Copy the `service-application` element to `tizen/service/tizen-manifest.xml`, together with the privileges and features it needs.
+   - Use `type="capp"` on both application elements, and remove the `dart_entrypoint` metadata.
+
+1. The service runner in `tizen/service/src/runner.cc` calls `app.SetDartEntrypoint("serviceMain")`. If your service app used a different entrypoint, change it there.
+
+1. Move your resources to the UI project and delete the native app files:
+
+   ```sh
+   cd tizen
+   cp -r shared/. ui/shared/
+   rm -rf shared tizen-manifest.xml
+   ```
