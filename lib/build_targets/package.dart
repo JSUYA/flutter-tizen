@@ -393,6 +393,9 @@ class NativeTpk extends TizenPackage {
     }
 
     if (tizenProject.usesPrebuiltRunner) {
+      tizenManifest.applyWindowConfiguration(
+        tizenProject.editableDirectory.childFile('flutter-tizen.yaml'),
+      );
       final File runner = await ensurePrebuiltRunner(
         buildInfo,
         rootstrap: rootstrap,
