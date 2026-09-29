@@ -398,6 +398,8 @@ type = app
         .childFile('rootstrap/flutter_tizen_common/Release/runner');
 
     testUsingContext('Packages the runner for every application', () async {
+      projectDir.childFile('tizen/res/user.txt').createSync(recursive: true);
+      projectDir.childFile('tizen/res/icudtl.dat').writeAsStringSync('user');
       final Map<String, List<int>> files = await buildTpk();
 
       expect(
@@ -411,6 +413,7 @@ type = app
           'lib/libflutter_tizen_common.so',
           'res/flutter_assets/.app.deps.json',
           'res/icudtl.dat',
+          'res/user.txt',
           'shared/res/ic_launcher.png',
           'tizen-manifest.xml',
         ]),
@@ -419,10 +422,12 @@ type = app
       expect(manifest, isNot(contains('type="flutter"')));
       expect('type="capp"'.allMatches(manifest), hasLength(2));
       expect(cachedRunner(), exists);
+      // The generated file is not overwritten.
+      expect(files['res/icudtl.dat'], isEmpty);
       // Nothing is generated in the tizen directory.
       expect(
         projectDir.childDirectory('tizen').listSync(recursive: true).whereType<File>(),
-        hasLength(2),
+        hasLength(4),
       );
     }, overrides: <Type, Generator>{
       FileSystem: () => fileSystem,

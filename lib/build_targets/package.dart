@@ -424,9 +424,15 @@ class NativeTpk extends TizenPackage {
           }
         }
       }
-      final Directory sharedDir = tizenProject.hostAppRoot.childDirectory('shared');
-      if (sharedDir.existsSync()) {
-        copyDirectory(sharedDir, ephemeralDir.childDirectory('shared'));
+      for (final name in <String>['res', 'shared']) {
+        final Directory userDir = tizenProject.hostAppRoot.childDirectory(name);
+        if (userDir.existsSync()) {
+          copyDirectory(
+            userDir,
+            ephemeralDir.childDirectory(name),
+            shouldCopyFile: (File srcFile, File destFile) => !destFile.existsSync(),
+          );
+        }
       }
 
       final File outputTpk = outputDir.childFile(tizenProject.outputTpkName);
