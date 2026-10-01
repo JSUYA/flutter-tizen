@@ -430,6 +430,28 @@ type = app
       TizenSdk: () => FakeTizenSdk(fileSystem, securityProfile: 'test_profile'),
     });
 
+    testUsingContext('Packages libraries in tizen/lib for the target arch', () async {
+      projectDir.childFile('tizen/lib/libcommon.so').createSync(recursive: true);
+      projectDir.childFile('tizen/lib/arm/libarm.so').createSync(recursive: true);
+      projectDir.childFile('tizen/lib/aarch64/libarm64.so').createSync(recursive: true);
+      projectDir.childFile('tizen/lib/libstatic.a').createSync(recursive: true);
+      projectDir.childFile('tizen/lib/libflutter_plugins.so').writeAsStringSync('user');
+
+      final Map<String, List<int>> files = await buildTpk();
+
+      expect(files.keys, containsAll(<String>['lib/libcommon.so', 'lib/libarm.so']));
+      expect(files.keys, isNot(contains('lib/libarm64.so')));
+      expect(files.keys, isNot(contains('lib/libstatic.a')));
+      expect(files.keys.where((String name) => name.startsWith('lib/arm/')), isEmpty);
+      // The generated library is not overwritten.
+      expect(files['lib/libflutter_plugins.so'], isEmpty);
+    }, overrides: <Type, Generator>{
+      FileSystem: () => fileSystem,
+      ProcessManager: () => processManager,
+      Cache: () => cache,
+      TizenSdk: () => FakeTizenSdk(fileSystem, securityProfile: 'test_profile'),
+    });
+
     testUsingContext('Builds the runner only if the cache is outdated', () async {
       await buildTpk();
       cachedRunner().writeAsStringSync('cached');
