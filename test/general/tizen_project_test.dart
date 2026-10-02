@@ -126,4 +126,32 @@ void main() {
     expect(project.managedDirectory.path, endsWith('.dart_tool/tizen'));
     expect(project.appDepsFile.path, endsWith('.dart_tool/tizen/.app.deps.json'));
   });
+
+  testUsingContext('The application type takes precedence over the project file', () {
+    project.editableDirectory.childFile('Runner.csproj').createSync(recursive: true);
+    expect(project.isDotnet, isTrue);
+
+    project.manifestFile.writeAsStringSync('''
+<manifest package="package_id" version="1.0.0">
+    <ui-application appid="app_id" exec="Runner.dll" type="flutter"/>
+</manifest>
+''');
+    expect(project.isDotnet, isFalse);
+    expect(project.usesPrebuiltRunner, isTrue);
+
+    project.manifestFile.writeAsStringSync(
+      project.manifestFile.readAsStringSync().replaceFirst('"flutter"', '"dotnet"'),
+    );
+    expect(project.isDotnet, isTrue);
+    expect(project.usesPrebuiltRunner, isFalse);
+
+    final Directory binDir = project.editableDirectory.childDirectory('bin')..createSync();
+    final Directory debugDir = project.editableDirectory.childDirectory('Debug')..createSync();
+    project.clean();
+    expect(binDir, isNot(exists));
+    expect(debugDir, isNot(exists));
+
+    project.editableDirectory.childFile('Runner.csproj').deleteSync();
+    expect(() => project.isDotnet, throwsToolExit(message: 'no .csproj file was found'));
+  });
 }
