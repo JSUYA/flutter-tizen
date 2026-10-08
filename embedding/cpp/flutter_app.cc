@@ -37,7 +37,7 @@ bool FlutterApp::OnCreate() {
       static_cast<FlutterDesktopRendererType>(renderer_type_);
   window_prop.user_pixel_ratio =
       user_pixel_ratio_ < 0.0 ? 0.0 : user_pixel_ratio_;
-  window_prop.window_handle = nullptr;
+  window_prop.window_handle = window_handle_;
   window_prop.pointing_device_support = is_pointing_device_support;
   window_prop.floating_menu_support = is_floating_menu_support;
 

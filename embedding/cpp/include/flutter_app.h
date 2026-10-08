@@ -95,6 +95,10 @@ class FlutterApp : public flutter::PluginRegistry {
   // Whether the window should have a transparent background or not.
   bool is_window_transparent_ = false;
 
+  // The precreated native window to render into, or nullptr to create a new
+  // window with the above geometry.
+  void *window_handle_ = nullptr;
+
   // Whether the window should be focusable or not.
   bool is_window_focusable_ = true;
 

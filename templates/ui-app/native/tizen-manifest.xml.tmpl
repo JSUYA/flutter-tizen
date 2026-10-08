@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest package="{{tizenIdentifier}}" version="1.0.0" api-version="6.0" xmlns="http://tizen.org/ns/packages">
+<manifest package="{{tizenIdentifier}}" version="1.0.0" api-version="{{#tizenDali}}11.0{{/tizenDali}}{{^tizenDali}}6.0{{/tizenDali}}" xmlns="http://tizen.org/ns/packages">
     <profile name="common"/>
     <ui-application appid="{{tizenIdentifier}}" exec="runner" type="flutter" multiple="false" nodisplay="false" taskmanage="true" hw-acceleration="on">
         <label>{{projectName}}</label>
         <icon>ic_launcher.png</icon>
+        {{#tizenDali}}
+        <metadata key="http://tizen.org/metadata/flutter_tizen/app_host" value="dali"/>
+        {{/tizenDali}}
     </ui-application>
     <feature name="http://tizen.org/feature/screen.size.all"/>
 </manifest>

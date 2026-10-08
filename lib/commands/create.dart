@@ -31,12 +31,14 @@ class TizenCreateCommand extends CreateCommand {
   TizenCreateCommand({super.verboseHelp}) {
     argParser.addOption(
       'tizen-language',
-      allowed: <String>['cpp', 'csharp', 'native'],
+      allowed: <String>['cpp', 'csharp', 'native', 'native-dali'],
       allowedHelp: <String, String>{
         'cpp': 'C++ (performant, but unsupported by TV devices).',
         'csharp': 'C# (universal).',
         'native': 'No Tizen-specific code. The app runs on a prebuilt C++ runner '
             'provided by flutter-tizen. Only for apps.',
+        'native-dali': 'Same as "native", but the UI app runs on the DALi '
+            'application model of newer platform versions. Only for UI and multi apps.',
       },
       help: 'The language to use for Tizen-specific code. '
           'If not specified, "cpp" is used by default if the project type is '
@@ -63,6 +65,13 @@ class TizenCreateCommand extends CreateCommand {
     }
     return stringArg('template') == 'plugin' ? 'cpp' : 'csharp';
   }
+
+  bool get tizenDali => tizenLanguage == 'native-dali';
+
+  /// The template directory name for [tizenLanguage].
+  ///
+  /// The native-dali template is the native template rendered with [tizenDali].
+  String get _templateLanguage => tizenDali ? 'native' : tizenLanguage;
 
   Directory get _tizenTemplates =>
       globals.fs.directory(Cache.flutterRoot).parent.childDirectory('templates');
@@ -249,7 +258,8 @@ class TizenCreateCommand extends CreateCommand {
     );
     context['tizen'] = true;
     context['tizenIdentifier'] = context['androidIdentifier'];
-    context['tizenLanguage'] = tizenLanguage;
+    context['tizenLanguage'] = _templateLanguage;
+    context['tizenDali'] = tizenDali;
     context['tizenNamespace'] = _createNamespaceName(projectName);
     return context;
   }
@@ -269,14 +279,20 @@ class TizenCreateCommand extends CreateCommand {
       throwToolExit('Creating an FFI plugin or package is not yet supported.');
     }
 
-    if (tizenLanguage == 'native' &&
+    if (tizenLanguage.startsWith('native') &&
         (_projectType ?? FlutterTemplateType.app) != FlutterTemplateType.app) {
-      throwToolExit('--tizen-language=native is only supported for apps.');
+      throwToolExit('--tizen-language=$tizenLanguage is only supported for apps.');
+    }
+    if (tizenDali && appType == 'service') {
+      throwToolExit('--tizen-language=native-dali is not supported for service apps.');
     }
 
     final templateName = template == 'app' ? '$appType-app' : template;
-    if (!_tizenTemplates.childDirectory(templateName).childDirectory(tizenLanguage).existsSync()) {
-      throwToolExit('Could not locate a template: $templateName/$tizenLanguage');
+    if (!_tizenTemplates
+        .childDirectory(templateName)
+        .childDirectory(_templateLanguage)
+        .existsSync()) {
+      throwToolExit('Could not locate a template: $templateName/$_templateLanguage');
     }
   }
 

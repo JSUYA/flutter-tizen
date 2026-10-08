@@ -5,9 +5,9 @@
 // The prebuilt runner of apps created with --tizen-language=native.
 //
 // A single binary serves every application in the package: the app type
-// (UI or service), Dart entrypoint, and optional window configuration are read
-// from tizen-manifest.xml at runtime, and native plugins are loaded from
-// libflutter_plugins.so.
+// (UI or service), app host (EFL or DALi application model), Dart entrypoint,
+// and optional window configuration are read from tizen-manifest.xml at
+// runtime, and native plugins are loaded from libflutter_plugins.so.
 
 #include <app_common.h>
 #include <app_manager.h>
@@ -128,22 +128,34 @@ void ApplyConfiguration(const AppConfig &config, const char *key, T *target,
   *target = value;
 }
 
-class UiApp : public App<FlutterApp> {
+template <typename T>
+class UiApp : public App<T> {
  public:
   explicit UiApp(const AppConfig &config) {
     // Apply only explicit overrides before FlutterApp::OnCreate creates a view.
-    ApplyConfiguration(config, "window_offset_x", &window_offset_x_);
-    ApplyConfiguration(config, "window_offset_y", &window_offset_y_);
-    ApplyConfiguration(config, "window_width", &window_width_, int32_t{0});
-    ApplyConfiguration(config, "window_height", &window_height_, int32_t{0});
-    ApplyConfiguration(config, "transparent", &is_window_transparent_);
-    ApplyConfiguration(config, "focusable", &is_window_focusable_);
-    ApplyConfiguration(config, "top_level", &is_top_level_);
-    ApplyConfiguration(config, "user_pixel_ratio", &user_pixel_ratio_, 0.0);
+    ApplyConfiguration(config, "window_offset_x", &this->window_offset_x_);
+    ApplyConfiguration(config, "window_offset_y", &this->window_offset_y_);
+    ApplyConfiguration(config, "window_width", &this->window_width_,
+                       int32_t{0});
+    ApplyConfiguration(config, "window_height", &this->window_height_,
+                       int32_t{0});
+    ApplyConfiguration(config, "transparent", &this->is_window_transparent_);
+    ApplyConfiguration(config, "focusable", &this->is_window_focusable_);
+    ApplyConfiguration(config, "top_level", &this->is_top_level_);
+    ApplyConfiguration(config, "user_pixel_ratio", &this->user_pixel_ratio_,
+                       0.0);
     ApplyConfiguration(config, "pointing_device_support",
-                       &is_pointing_device_support);
+                       &this->is_pointing_device_support);
     ApplyConfiguration(config, "floating_menu_support",
-                       &is_floating_menu_support);
+                       &this->is_floating_menu_support);
+  }
+};
+
+// A UI app hosted by the DALi application model (metadata app_host=dali).
+class DaliUiApp : public UiApp<FlutterDaliApp> {
+ public:
+  explicit DaliUiApp(const AppConfig &config) : UiApp(config) {
+    ApplyConfiguration(config, "use_dali_window", &use_dali_window_);
   }
 };
 
@@ -199,7 +211,17 @@ int main(int argc, char *argv[]) {
     app.SetDartEntrypoint(config.dart_entrypoint);
     return app.Run(argc, argv);
   }
-  UiApp app(config);
+  const auto app_host = config.configuration.find("app_host");
+  if (app_host != config.configuration.end()) {
+    if (app_host->second != "dali") {
+      TizenLog::Error("Unknown app host: %s", app_host->second.c_str());
+      return 1;
+    }
+    DaliUiApp app(config);
+    app.SetDartEntrypoint(config.dart_entrypoint);
+    return app.Run(argc, argv);
+  }
+  UiApp<FlutterApp> app(config);
   app.SetDartEntrypoint(config.dart_entrypoint);
   return app.Run(argc, argv);
 }

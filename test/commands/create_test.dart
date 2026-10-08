@@ -198,6 +198,44 @@ void main() {
     expect(projectDir.childDirectory('tizen/service'), isNot(exists));
   }, overrides: <Type, Generator>{});
 
+  testUsingContext('Can create a native DALi app project', () async {
+    final command = TizenCreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    await runner.run(<String>[
+      'create',
+      '--no-pub',
+      '--platforms=tizen',
+      '--tizen-language=native-dali',
+      projectDir.path,
+    ]);
+
+    final String manifest = projectDir.childFile('tizen/tizen-manifest.xml').readAsStringSync();
+    expect(manifest, contains('api-version="11.0"'));
+    expect(manifest, contains('exec="runner" type="flutter"'));
+    expect(
+      manifest,
+      contains('<metadata key="http://tizen.org/metadata/flutter_tizen/app_host" value="dali"/>'),
+    );
+    expect(manifest, isNot(contains('{{')));
+    expect(projectDir.childFile('tizen/project_def.prop'), isNot(exists));
+  }, overrides: <Type, Generator>{});
+
+  testUsingContext('Cannot create a native DALi service app project', () async {
+    final command = TizenCreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    await expectLater(
+      runner.run(<String>[
+        'create',
+        '--no-pub',
+        '--platforms=tizen',
+        '--app-type=service',
+        '--tizen-language=native-dali',
+        projectDir.path,
+      ]),
+      throwsToolExit(message: '--tizen-language=native-dali is not supported for service apps.'),
+    );
+  }, overrides: <Type, Generator>{});
+
   testUsingContext('Cannot create a native plugin or module project', () async {
     final command = TizenCreateCommand();
     final CommandRunner<void> runner = createTestCommandRunner(command);

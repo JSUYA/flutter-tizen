@@ -13,3 +13,7 @@ USER_INC_DIRS = include \
 USER_SRCS = *.cc \
     ../../flutter/bin/cache/artifacts/engine/tizen-common/cpp_client_wrapper/*.cc \
     ../../flutter/bin/cache/dart-sdk/include/dart_api_dl.c
+
+# The DALi application model (dali-application) is loaded at runtime by
+# dali_application_abi.cc until its API becomes public. Link it directly then:
+# USER_LIBS = dali-application dali2-adaptor dali2-core

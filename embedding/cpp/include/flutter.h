@@ -6,6 +6,7 @@
 #define FLUTTER_TIZEN_EMBEDDING_CPP_INCLUDE_FLUTTER_H_
 
 #include "flutter_app.h"
+#include "flutter_dali_app.h"
 #include "flutter_engine.h"
 #include "flutter_service_app.h"
 

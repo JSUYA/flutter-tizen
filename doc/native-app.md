@@ -27,6 +27,8 @@ flutter-tizen create --tizen-language native --app-type multi my_multi_app
 
 `--tizen-language native` is only available for apps. Plugins and modules still use `cpp` or `csharp`.
 
+`--tizen-language native-dali` creates the same project, but the UI app runs on the DALi application model instead of the EFL application model. See [DALi app host](#dali-app-host). It is available for UI and multi apps.
+
 Build and run the app as usual:
 
 ```sh
@@ -116,6 +118,23 @@ window settings. The runner binary is still shared and cached across apps.
 Pointing device and floating menu settings only have an effect on TV; adding these
 settings does not add TV support to the native app model.
 
+### DALi app host
+
+Newer platform versions provide a DALi based application model (`tizen_appfw::DaliApplication`) in addition to the EFL based one (`ui_app_main`). A UI application element with the following metadata is hosted by the DALi application model; `--tizen-language native-dali` adds it to the generated manifest, together with the matching `api-version`:
+
+```xml
+<metadata key="http://tizen.org/metadata/flutter_tizen/app_host" value="dali"/>
+```
+
+| Key                                                         | Description                                                                          |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `http://tizen.org/metadata/flutter_tizen/app_host`          | `dali` to host the app with the DALi application model. Defaults to the EFL application model. UI applications only. |
+| `http://tizen.org/metadata/flutter_tizen/use_dali_window`   | `true` to render into the default window of the DALi application instead of a window created by Flutter. Experimental and not usable yet: the DALi adaptor renders into the same window, so only a blank frame is shown. Defaults to `false`. |
+
+The runner uses `FlutterDaliApp` for such applications. Its lifecycle callbacks are the same as those of `FlutterApp`, and the window configuration applies in the same way. System event callbacks receive a null `app_event_info_h`.
+
+The DALi application model is loaded at runtime (`libdali-application.so.1`), so the runner itself has no build-time dependency on it. Until its API becomes public, the embedding declares an ABI-compatible mirror of `tizen_appfw::DaliApplication` in `embedding/cpp/dali_application_abi.h` and resolves the library symbols with `dlsym`; the header includes and libraries to use once the API is public are left as comments in `flutter_dali_app.cc` and `project_def.prop`. The app fails to start with `The DALi application model is not available.` on devices without it.
+
 ### Multi apps
 
 In a multi app, both applications are declared in a single manifest. They share the same Dart code and differ in their entrypoints:
@@ -130,7 +149,7 @@ In a multi app, both applications are declared in a single manifest. They share 
 </service-application>
 ```
 
-The runner uses `FlutterServiceApp` (headless) for `service-application` elements and `FlutterApp` for `ui-application` elements.
+The runner uses `FlutterServiceApp` (headless) for `service-application` elements and `FlutterApp` (or `FlutterDaliApp` with `app_host=dali`) for `ui-application` elements.
 
 ## How it works
 
@@ -146,7 +165,7 @@ No runner code is compiled as part of your app build. The runner is built from [
 At startup, the runner:
 
 1. Reads the application type and the Dart entrypoint from the manifest.
-1. Starts the Flutter engine with `FlutterApp` or `FlutterServiceApp`.
+1. Starts the Flutter engine with `FlutterApp`, `FlutterDaliApp`, or `FlutterServiceApp`.
 1. Loads `lib/libflutter_plugins.so` if it exists and calls `FlutterRegisterPlugins`.
 
 ## Troubleshooting
