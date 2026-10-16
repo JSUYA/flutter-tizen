@@ -119,6 +119,7 @@ void main() {
             'build',
           ],
           workingDirectory: '${projectDir.path}/tizen',
+          environment: const <String, String>{'ImportProjectExtensionTargets': 'true'},
           onRun: (_) {
             projectDir
                 .childFile('tizen/bin/Release/tizen80/package_id-1.0.0.tpk')

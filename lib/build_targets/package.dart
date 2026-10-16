@@ -188,10 +188,13 @@ class DotnetTpk extends TizenPackage {
     // https://github.com/flutter-tizen/flutter-tizen/issues/610
     tizenProject.hostAppRoot.childFile('tizen_dotnet_project.yaml').createSync(recursive: true);
 
+    // MSBuild 17.10+ skips obj/*.targets, which reference plugin projects, while restoring.
+    const dotnetEnvironment = <String, String>{'ImportProjectExtensionTargets': 'true'};
     final RunResult result = await tizenSdk!.tzBuild(
       tizenProject.hostAppRoot.path,
       buildType: buildConfig,
       signingProfile: securityProfile,
+      environment: dotnetEnvironment,
     );
     if (result.exitCode != 0) {
       final String message = result
@@ -212,7 +215,7 @@ class DotnetTpk extends TizenPackage {
         buildConfig,
         '/p:DefineConstants=${profile.toUpperCase()}_PROFILE',
         tizenProject.serviceAppDirectory.path,
-      ]);
+      ], environment: dotnetEnvironment);
       if (result.exitCode != 0) {
         throwToolExit('Failed to build .NET service application:\n$result');
       }
