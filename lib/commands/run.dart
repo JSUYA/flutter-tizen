@@ -4,12 +4,12 @@
 
 import 'package:flutter_tools/src/base/logger.dart';
 import 'package:flutter_tools/src/base/terminal.dart';
-import 'package:flutter_tools/src/build_info.dart';
 import 'package:flutter_tools/src/commands/run.dart';
 import 'package:flutter_tools/src/device.dart';
 import 'package:flutter_tools/src/globals.dart' as globals;
 import 'package:flutter_tools/src/runner/target_devices.dart';
 
+import '../tizen_build_info.dart';
 import '../tizen_cache.dart';
 import '../tizen_device.dart';
 import '../tizen_plugins.dart';
@@ -62,14 +62,15 @@ class TizenDeviceLogger extends DelegatingLogger {
   }) {
     for (final TizenDevice device in _devices) {
       if (message.contains(device.name) && message.contains('Tizen')) {
+        final String platformName = getTargetPlatformForArch(device.architecture).getName();
         message = message
             .replaceFirst(
               '(${Category.mobile})',
               '(${device.deviceProfile})${device.deviceProfile == 'tv' ? '    ' : ''}',
             )
             .replaceFirst(
-              TargetPlatform.tester.getName(),
-              'tizen-${device.architecture}${device.architecture == 'arm64' ? '   ' : '     '}',
+              platformName,
+              'tizen-${device.architecture}'.padRight(platformName.length),
             );
       }
     }

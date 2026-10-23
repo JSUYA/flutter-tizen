@@ -54,6 +54,32 @@ void main() {
     logger = BufferLogger.test();
   });
 
+  testWithoutContext('TizenDevice.targetPlatform follows the device architecture', () async {
+    final TizenDevice armDevice = _createTizenDevice(
+      processManager: FakeProcessManager.list(<FakeCommand>[
+        FakeCommand(
+          command: _sdbCommand(<String>['capability']),
+          stdout: <String>[
+            'cpu_arch:armv7',
+            'secure_protocol:disabled',
+            'architecture:32',
+          ].join('\n'),
+        ),
+      ]),
+    );
+    final TizenDevice x86Emulator = _createTizenDevice(
+      processManager: FakeProcessManager.list(<FakeCommand>[
+        FakeCommand(
+          command: _sdbCommand(<String>['capability']),
+          stdout: 'cpu_arch:x86',
+        ),
+      ]),
+    );
+
+    expect(await armDevice.targetPlatform, TargetPlatform.android_arm);
+    expect(await x86Emulator.targetPlatform, TargetPlatform.tester);
+  });
+
   testWithoutContext('TizenDevice.startApp succeeds in debug mode', () async {
     final TizenDevice device = _createTizenDevice(
       processManager: processManager,

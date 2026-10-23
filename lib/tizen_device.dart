@@ -114,10 +114,12 @@ class TizenDevice extends Device {
 
   @override
   Future<TargetPlatform> get targetPlatform async {
-    // Use tester as a platform identifer for Tizen.
-    // There's currently no other choice because TargetPlatform.getName()
-    // throws an error for unknown platform types.
-    return TargetPlatform.tester;
+    // There is no Tizen entry in TargetPlatform, so the Android platforms are
+    // used as architecture aliases (the same convention as the build targets).
+    // The alias decides which assets the DevFS syncs and which runtime stages
+    // the development shader compiler emits, so it must match the device.
+    // x86 emulators keep using tester because android_x86 no longer exists.
+    return getTargetPlatformForArch(architecture);
   }
 
   @override
